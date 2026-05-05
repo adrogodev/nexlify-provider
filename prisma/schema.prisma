@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model admin_user {
+  id_user            BigInt    @id @default(autoincrement())
+  name               String?   @db.VarChar(255)
+  surname            String?   @db.VarChar(255)
+  username           String?   @db.VarChar(255)
+  password           String?   @db.VarChar(255)
+  ip_connection      String?   @db.VarChar(255)
+  auth_token         String?   @db.VarChar(255)
+  recovery_toke_data String?   @db.VarChar(255)
+  is_active          Boolean?
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+}
+
+model client_credentials {
+  id_client_credential Int       @id @default(autoincrement())
+  username             String?   @db.VarChar(255)
+  password             String?
+  ip_connection        String?   @db.VarChar(255)
+  auth_token           String?
+  recovery_token       String?
+  created_at           DateTime? @db.Timestamptz(6)
+  updated_at           DateTime? @db.Timestamptz(6)
+}
+
+model clients {
+  id_client          BigInt    @id @default(autoincrement())
+  id_state           Int?      @db.SmallInt
+  principal_name     String?   @db.VarChar(255)
+  email              String?   @db.VarChar(255)
+  cell_callsign      String?   @db.VarChar(5)
+  cell_phone         String?   @db.VarChar(255)
+  user_first_name    String?   @db.VarChar(255)
+  user_second_name   String?   @db.VarChar(255)
+  user_first_surname String?   @db.VarChar(255)
+  user_secod_surname String?   @db.VarChar(255)
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+}
+
+model diffusion_information {
+  id_diffusion_information  BigInt    @id @default(autoincrement())
+  id_client                 BigInt    @default(autoincrement())
+  sender_email              String?   @db.VarChar(255)
+  mail_application_password String?
+  id_smtp_server            BigInt?
+  is_default                Boolean?
+  created_at                DateTime? @db.Timestamptz(6)
+  updated_at                DateTime? @db.Timestamptz(6)
+}
+
+model nexlify_keys {
+  id_nexlify_key BigInt    @id @default(autoincrement())
+  id_client      BigInt    @default(autoincrement())
+  api_key        String?
+  state          Boolean?
+  created_at     DateTime? @db.Timestamptz(6)
+  updated_at     DateTime? @db.Timestamptz(6)
+}
+
+model nexlify_keys_logs {
+  id_nexlify_key_log BigInt    @id @default(autoincrement())
+  id_client          BigInt    @default(autoincrement())
+  api_key            String?
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+}
+
+model smtp_servers {
+  id_smpt_server BigInt    @id @default(autoincrement())
+  provider       String?   @db.VarChar(50)
+  name           String?   @db.VarChar(50)
+  port           Int?      @db.SmallInt
+  created_at     DateTime? @db.Timestamptz(6)
+  updated_at     DateTime? @db.Timestamptz(6)
+}
+
+model templates {
+  id_template String    @id @db.Uuid
+  name        String?   @db.VarChar(50)
+  subject     String?   @db.VarChar(255)
+  template    String?
+  is_active   Boolean?
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+}
+
+model users {
+  id_user        BigInt    @id @default(autoincrement())
+  id_client      BigInt?
+  first_name     String?   @db.VarChar(255)
+  second_name    String?   @db.VarChar(255)
+  first_surname  String?   @db.VarChar(255)
+  second_surname String?   @db.VarChar(255)
+  email          String?   @db.VarChar(255)
+  cell_callsign  String?   @db.VarChar(5)
+  cell_phone     String?   @db.VarChar(255)
+  birthdate      DateTime? @db.Date
+  state          Boolean?
+  created_at     DateTime? @db.Timestamptz(6)
+  updated_at     DateTime? @db.Timestamptz(6)
+}
