@@ -1,10 +1,11 @@
 import { colors } from '@gamastudio/colorslog';
-import { type INestApplication, ValidationPipe, Logger } from '@nestjs/common';
+import { type INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cors from 'cors';
 import helmet from 'helmet';
 import { AppModule } from 'src/app.module';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
+import { AppEnvs as _env } from '../../infrastructure/environments/app-env.config'
 
 export class Server {
     readonly #logger = colors;
@@ -17,13 +18,13 @@ export class Server {
         this.#registerMiddlewares();
         this.#registerGlobals();
 
-        await this.#app.listen(3500);
+        await this.#app.listen(_env.PORT);
 
         this.#prismaLogger.log('✅ Conexión a la base de datos exitosa');
-        this.#logger.info(`Servidor corriendo en puerto 3500`, {
+        this.#logger.info(`Servidor corriendo en puerto ${_env.PORT}`, {
             dateShow: false,
         });
-}
+    }
 
 
     #registerMiddlewares(): void {
