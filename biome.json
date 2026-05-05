@@ -18,18 +18,22 @@
 				"noNonNullAssertion": "off"
 			}
 		},
-		"ignore": ["src/generated/**", "src/presentation/**"]
+		"ignore": ["src/generated/**", "src/presentation/**", "dist/**"]
 	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "space",
 		"indentWidth": 4,
-		"lineEnding": "lf"
+		"lineEnding": "lf",
+		"ignore": ["src/generated/**", "dist/**"]
 	},
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "single",
 			"trailingCommas": "all"
 		}
+	},
+	"files": {
+		"ignore": ["node_modules/**", "dist/**", "coverage/**"]
 	}
 }
