@@ -1,14 +1,16 @@
 import { Module } from '@nestjs/common';
-import { USER_REPOSITORY } from '../../core/application/contracts/persistence/user-repository.contract';
-import { UserRepository } from './user.repository';
+import { PrismaModule } from '../prisma/prisma.module';
+import { ADMIN_USER_REPOSITORY } from '../../core/application/contracts/persistence/admin-user.repository';
+import { AdminUserRepository } from './admin-user.repository';
 
 @Module({
+    imports: [PrismaModule],
     providers: [
         {
-            provide: USER_REPOSITORY,
-            useClass: UserRepository,
+            provide: ADMIN_USER_REPOSITORY,
+            useClass: AdminUserRepository,
         },
     ],
-    exports: [USER_REPOSITORY],
+    exports: [ADMIN_USER_REPOSITORY],
 })
 export class RepositoriesModule {}
