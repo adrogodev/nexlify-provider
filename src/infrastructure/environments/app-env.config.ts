@@ -1,6 +1,6 @@
-import "dotenv/config"
-import * as env from "env-var"
 import { type ApplicationEnvs, NodeEnvEnum } from "./environment.config"
+import * as env from "env-var"
+import "dotenv/config"
 
 
 export const AppEnvs: Readonly<ApplicationEnvs> = Object.freeze<ApplicationEnvs>({
@@ -11,5 +11,7 @@ export const AppEnvs: Readonly<ApplicationEnvs> = Object.freeze<ApplicationEnvs>
         NodeEnvEnum.PRODUCTION
     ]),
     ADMIN_USER: env.get("ADMIN_USER").required().asString(),
-    ADMIN_PASSWORD: env.get("ADMIN_PASSWORD").required().asString()
+    ADMIN_PASSWORD: env.get("ADMIN_PASSWORD").required().asString(),
+    JWT_SECRET_KEY: env.get("JWT_SECRET_KEY").required().asString(),
+    JWT_EXPIRATION_TIME: env.get("JWT_EXPIRATION_TIME").required().asInt(),
 })
