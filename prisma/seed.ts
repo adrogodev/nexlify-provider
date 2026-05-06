@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { AppEnvs as _env } from '../src/infrastructure/environments/app-env.config'
-import { HashGeneratorTools } from 'src/infrastructure/tools/hash-generator.tool';
+import { HashGeneratorTools } from 'src/infrastructure/helpers/hash-generator.helper';
 import { colors } from '@gamastudio/colorslog'
 
 const prisma = new PrismaClient({
