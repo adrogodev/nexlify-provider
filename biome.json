@@ -15,17 +15,25 @@
 			},
 			"style": {
 				"useNodejsImportProtocol": "off",
-				"noNonNullAssertion": "off"
+				"noNonNullAssertion": "off",
+				"useImportType": "off"
 			}
 		},
-		"ignore": ["src/generated/**", "src/presentation/**", "dist/**"]
+		"ignore": [
+			"src/generated/**",
+			"src/presentation/**",
+			"dist/**"
+		]
 	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "space",
 		"indentWidth": 4,
 		"lineEnding": "lf",
-		"ignore": ["src/generated/**", "dist/**"]
+		"ignore": [
+			"src/generated/**",
+			"dist/**"
+		]
 	},
 	"javascript": {
 		"formatter": {
@@ -34,6 +42,10 @@
 		}
 	},
 	"files": {
-		"ignore": ["node_modules/**", "dist/**", "coverage/**"]
+		"ignore": [
+			"node_modules/**",
+			"dist/**",
+			"coverage/**"
+		]
 	}
 }
