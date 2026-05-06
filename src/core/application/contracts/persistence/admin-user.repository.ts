@@ -3,4 +3,7 @@ import type { IBaseRepository } from './base.repository';
 
 export const ADMIN_USER_REPOSITORY = Symbol('IAdminUserRepository');
 
-export interface IAdminUserRepository extends IBaseRepository<admin_user, bigint> {}
+export interface IAdminUserRepository extends IBaseRepository<admin_user, bigint> {
+    findByUsername(username: string): Promise<admin_user | null>;
+    updateAuthToken(id: bigint, token: string): Promise<void>;
+}
