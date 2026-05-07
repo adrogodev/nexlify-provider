@@ -3,7 +3,7 @@ import { TokenData } from 'src/core/domain/models/token-data.model';
 import { JSONParse } from '../tools/json.tools';
 import jwt, { type Algorithm } from "jsonwebtoken"
 
-export class JwtGeneratorTools implements IJwtGenerator {
+export class JwtGeneratorHelper implements IJwtGenerator {
 
     #ALGORITHM: Algorithm = "HS512";
 

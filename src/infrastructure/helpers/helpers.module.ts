@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR } from 'src/core/application/contracts/infrastructure';
-import { EncryptTools } from './encrypt.helper';
-import { HashGeneratorTools } from './hash-generator.helper';
-import { JwtGeneratorTools } from './jwt-generator.helper';
+import { EncryptHelper } from './encrypt.helper';
+import { HashGeneratorHelper } from './hash-generator.helper';
+import { JwtGeneratorHelper } from './jwt-generator.helper';
 
 @Module({
     providers: [
-        { provide: ENCRYPTER, useClass: EncryptTools },
-        { provide: HASH_GENERATOR, useClass: HashGeneratorTools },
-        { provide: JWT_GENERATOR, useClass: JwtGeneratorTools },
+        { provide: ENCRYPTER, useClass: EncryptHelper },
+        { provide: HASH_GENERATOR, useClass: HashGeneratorHelper },
+        { provide: JWT_GENERATOR, useClass: JwtGeneratorHelper },
     ],
     exports: [ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR],
 })
