@@ -22,6 +22,9 @@
 				"useConst":"off",
 				"noParameterAssign":"off",
 				"noCommaOperator":"off"
+			},
+			"complexity":{
+				"useLiteralKeys":"off"
 			}
 		},
 		"ignore": [
