@@ -25,11 +25,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         }
 
         if (exception instanceof Error) {
+            console.error('[GlobalExceptionFilter]', exception.message, exception);
             const { statusCode, response } = this._handler.run(exception);
             res.status(statusCode).json(response);
             return;
         }
 
+        console.error('[GlobalExceptionFilter] Unknown exception', exception);
         res.status(500).json(
             new ClientErrorResponse({ ok: false, code: 'INTERNAL_SERVER_ERROR', message: 'Error interno en el servidor' }),
         );
