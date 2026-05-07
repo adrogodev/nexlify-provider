@@ -11,4 +11,5 @@ export interface ApplicationEnvs {
     ADMIN_PASSWORD: string;
     JWT_SECRET_KEY: string;
     JWT_EXPIRATION_TIME: number;
+    ENCRYPT_KEY: string;
 }
