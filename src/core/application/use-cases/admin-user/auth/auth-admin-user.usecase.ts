@@ -30,10 +30,11 @@ export class AuthAdminUserUseCase implements UseCase<AuthAdminUserInput, AuthDto
 
         const authToken = this._jwt.createTokenWithExpiration({ data: tokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}h` });
 
-        const tokenChiper = this._encrypter.encrypt(authToken)
+        const tokenChiper = this._encrypter.encrypt(authToken, _env.ENCRYPT_KEY);
 
         user.ip_connection = ip_connection;
         user.auth_token = tokenChiper;
+        user.updated_at = new Date();
 
         await this._adminUserRepository.update(user.id_user, user);
 
