@@ -7,17 +7,16 @@ datasource db {
 }
 
 model admin_user {
-  id_user            BigInt    @id @default(autoincrement())
-  name               String?   @db.VarChar(255)
-  surname            String?   @db.VarChar(255)
-  username           String?   @db.VarChar(255)
-  password           String?   @db.VarChar(255)
-  ip_connection      String?   @db.VarChar(255)
-  auth_token         String?   @db.VarChar(255)
-  recovery_toke_data String?   @db.VarChar(255)
-  is_active          Boolean?
-  created_at         DateTime? @db.Timestamptz(6)
-  updated_at         DateTime? @db.Timestamptz(6)
+  id_user       BigInt    @id @default(autoincrement())
+  name          String?   @db.VarChar(255)
+  surname       String?   @db.VarChar(255)
+  username      String?   @db.VarChar(255)
+  password      String?   @db.VarChar(255)
+  ip_connection String?   @db.VarChar(255)
+  auth_token    String?
+  is_active     Boolean?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model client_credentials {
@@ -27,14 +26,14 @@ model client_credentials {
   ip_connection        String?   @db.VarChar(255)
   auth_token           String?
   recovery_token       String?
-  created_at           DateTime? @db.Timestamptz(6)
-  updated_at           DateTime? @db.Timestamptz(6)
+  created_at           DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model clients {
   id_client          BigInt    @id @default(autoincrement())
   id_state           Int?      @db.SmallInt
-  principal_name     String?   @db.VarChar(255)
+  name               String?   @db.VarChar(255)
   email              String?   @db.VarChar(255)
   cell_callsign      String?   @db.VarChar(5)
   cell_phone         String?   @db.VarChar(255)
@@ -42,8 +41,8 @@ model clients {
   user_second_name   String?   @db.VarChar(255)
   user_first_surname String?   @db.VarChar(255)
   user_secod_surname String?   @db.VarChar(255)
-  created_at         DateTime? @db.Timestamptz(6)
-  updated_at         DateTime? @db.Timestamptz(6)
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model diffusion_information {
@@ -53,8 +52,8 @@ model diffusion_information {
   mail_application_password String?
   id_smtp_server            BigInt?
   is_default                Boolean?
-  created_at                DateTime? @db.Timestamptz(6)
-  updated_at                DateTime? @db.Timestamptz(6)
+  created_at                DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model nexlify_keys {
@@ -62,16 +61,16 @@ model nexlify_keys {
   id_client      BigInt    @default(autoincrement())
   api_key        String?
   state          Boolean?
-  created_at     DateTime? @db.Timestamptz(6)
-  updated_at     DateTime? @db.Timestamptz(6)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model nexlify_keys_logs {
   id_nexlify_key_log BigInt    @id @default(autoincrement())
   id_client          BigInt    @default(autoincrement())
   api_key            String?
-  created_at         DateTime? @db.Timestamptz(6)
-  updated_at         DateTime? @db.Timestamptz(6)
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model smtp_servers {
@@ -79,8 +78,8 @@ model smtp_servers {
   provider       String?   @db.VarChar(50)
   name           String?   @db.VarChar(50)
   port           Int?      @db.SmallInt
-  created_at     DateTime? @db.Timestamptz(6)
-  updated_at     DateTime? @db.Timestamptz(6)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model templates {
@@ -89,8 +88,8 @@ model templates {
   subject     String?   @db.VarChar(255)
   template    String?
   is_active   Boolean?
-  created_at  DateTime? @db.Timestamptz(6)
-  updated_at  DateTime? @db.Timestamptz(6)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model users {
@@ -105,6 +104,6 @@ model users {
   cell_phone     String?   @db.VarChar(255)
   birthdate      DateTime? @db.Date
   state          Boolean?
-  created_at     DateTime? @db.Timestamptz(6)
-  updated_at     DateTime? @db.Timestamptz(6)
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
 }
