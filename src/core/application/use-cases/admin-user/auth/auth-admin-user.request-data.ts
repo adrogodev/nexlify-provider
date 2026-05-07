@@ -9,3 +9,5 @@ export class AuthAdminUserRequestData {
     @IsNotEmpty()
     password: string;
 }
+
+export type AuthAdminUserInput = AuthAdminUserRequestData & { ip_connection: string };
