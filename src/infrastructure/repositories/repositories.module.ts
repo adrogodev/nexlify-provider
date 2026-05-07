@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
-import { ADMIN_USER_REPOSITORY } from '../../core/application/contracts/persistence/admin-user.repository';
 import { AdminUserRepository } from './admin-user.repository';
+import { ADMIN_USER_REPOSITORY, CLIENT_REPOSITORY } from 'src/core/application/contracts/persistence';
+import { ClientRepository } from './client.repository';
 
 @Module({
     imports: [PrismaModule],
@@ -10,7 +11,11 @@ import { AdminUserRepository } from './admin-user.repository';
             provide: ADMIN_USER_REPOSITORY,
             useClass: AdminUserRepository,
         },
+        {
+            provide: CLIENT_REPOSITORY,
+            useClass: ClientRepository
+        }
     ],
-    exports: [ADMIN_USER_REPOSITORY],
+    exports: [ADMIN_USER_REPOSITORY, CLIENT_REPOSITORY],
 })
-export class RepositoriesModule {}
+export class RepositoriesModule { }
