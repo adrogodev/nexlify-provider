@@ -20,7 +20,8 @@
 				"noInferrableTypes":"off",
 				"useTemplate":"off",
 				"useConst":"off",
-				"noParameterAssign":"off"
+				"noParameterAssign":"off",
+				"noCommaOperator":"off"
 			}
 		},
 		"ignore": [
