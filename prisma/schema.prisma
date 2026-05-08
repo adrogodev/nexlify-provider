@@ -31,18 +31,18 @@ model client_credentials {
 }
 
 model clients {
-  id_client          BigInt    @id @default(autoincrement())
-  id_state           Int?      @db.SmallInt
-  name               String?   @db.VarChar(255)
-  email              String?   @db.VarChar(255)
-  cell_callsign      String?   @db.VarChar(5)
-  cell_phone         String?   @db.VarChar(255)
-  user_first_name    String?   @db.VarChar(255)
-  user_second_name   String?   @db.VarChar(255)
-  user_first_surname String?   @db.VarChar(255)
-  user_secod_surname String?   @db.VarChar(255)
-  created_at         DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime? @default(now()) @db.Timestamptz(6)
+  id_client           BigInt    @id @default(autoincrement())
+  id_state            Int?      @db.SmallInt
+  name                String?   @db.VarChar(255)
+  email               String?   @db.VarChar(255)
+  cell_callsign       String?   @db.VarChar(5)
+  cell_phone          String?   @db.VarChar(255)
+  user_first_name     String?   @db.VarChar(255)
+  user_second_name    String?   @db.VarChar(255)
+  user_first_surname  String?   @db.VarChar(255)
+  user_second_surname String?   @db.VarChar(255)
+  created_at          DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model diffusion_information {
@@ -78,6 +78,7 @@ model smtp_servers {
   provider       String?   @db.VarChar(50)
   name           String?   @db.VarChar(50)
   port           Int?      @db.SmallInt
+  state          Boolean?  @default(true)
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
   updated_at     DateTime? @default(now()) @db.Timestamptz(6)
 }
