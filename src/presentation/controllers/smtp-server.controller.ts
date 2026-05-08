@@ -1,7 +1,9 @@
-import { Body, Controller, HttpCode, Post } from "@nestjs/common";
+import { Body, Controller, HttpCode, Post, UseGuards } from "@nestjs/common";
 import { AddSmtpServerRequestData, AddSmtpServerUseCase } from "src/core/application/use-cases/smtp-server";
 import { ClientResponse } from "src/core/domain/models";
+import { AuthGuard } from "src/infrastructure/guards";
 
+@UseGuards(AuthGuard)
 @Controller('api/smtp-server')
 export class SmtpServerController {
     constructor(
