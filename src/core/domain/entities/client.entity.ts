@@ -9,7 +9,7 @@ export class Client {
         readonly user_first_name?: string,
         readonly user_second_name?: string,
         readonly user_first_surname?: string,
-        readonly user_secod_surname?: string,
+        readonly user_second_surname?: string,
         readonly created_at?: Date,
         readonly updated_at?: Date
     ) { }
