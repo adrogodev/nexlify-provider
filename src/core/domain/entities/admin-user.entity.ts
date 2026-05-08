@@ -11,5 +11,5 @@ export class AdmiUser {
         readonly isActive?: boolean,
         readonly createdAt?: Date,
         readonly updatedAt?: Date,
-    ) {}
+    ) { }
 }

@@ -9,4 +9,7 @@ export interface ApplicationEnvs {
     NODE_ENV: string;
     ADMIN_USER: string;
     ADMIN_PASSWORD: string;
+    JWT_SECRET_KEY: string;
+    JWT_EXPIRATION_TIME: number;
+    ENCRYPT_KEY: string;
 }

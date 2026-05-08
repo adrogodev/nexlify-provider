@@ -1,14 +1,14 @@
 import type { Prisma } from '@prisma/client';
-import type { IBaseRepository } from '../../core/application/contracts/persistence/base.repository';
+import type { EntityInput, IBaseRepository } from '../../core/application/contracts/persistence/base.repository';
 import { PrismaService } from '../prisma/prisma.service';
 
-export abstract class BaseRepository<T, TId> implements IBaseRepository<T, TId> {
+export abstract class BaseRepository<T, TIdKey extends keyof T> implements IBaseRepository<T, TIdKey> {
     protected _transaction: Prisma.TransactionClient | null = null;
 
     constructor(
         protected readonly prisma: PrismaService,
         private readonly modelKey: string,
-        private readonly idKey: string,
+        private readonly idKey: TIdKey,
     ) { }
 
     protected get _model(): any {
@@ -23,22 +23,21 @@ export abstract class BaseRepository<T, TId> implements IBaseRepository<T, TId> 
         return await this._model.findMany();
     }
 
-    public async getByIdAsync(id: TId): Promise<T | null> {
+    public async getByIdAsync(id: T[TIdKey]): Promise<T | null> {
         return await this._model.findUnique({ where: { [this.idKey]: id } });
     }
 
-    public async create(entity: T): Promise<T> {
-        const { [this.idKey]: _id, ...data } = entity as any;
-        return await this._model.create({ data });
+    public async create(entity: EntityInput<T, TIdKey>): Promise<T> {
+        return await this._model.create({ data: entity });
     }
 
-    public async update(id: TId, entity: T): Promise<T | null> {
-        const { [this.idKey]: _id, ...data } = entity as any;
+    public async update(id: T[TIdKey], entity: T): Promise<T | null> {
+        const { [this.idKey]: _id, created_at: _ca, updated_at: _ua, ...data } = entity as any;
         await this._model.update({ where: { [this.idKey]: id }, data });
         return await this.getByIdAsync(id);
     }
 
-    public async delete(id: TId): Promise<boolean> {
+    public async delete(id: T[TIdKey]): Promise<boolean> {
         const result = await this._model.deleteMany({ where: { [this.idKey]: id } });
         return result.count > 0;
     }

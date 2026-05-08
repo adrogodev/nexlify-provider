@@ -5,8 +5,12 @@ import type { IAdminUserRepository } from '../../core/application/contracts/pers
 import { BaseRepository } from './base.repository';
 
 @Injectable()
-export class AdminUserRepository extends BaseRepository<admin_user, bigint> implements IAdminUserRepository {
+export class AdminUserRepository extends BaseRepository<admin_user, 'id_user'> implements IAdminUserRepository {
     constructor(prisma: PrismaService) {
         super(prisma, 'admin_user', 'id_user');
+    }
+
+    async findByUsername(username: string): Promise<admin_user | null> {
+        return await this._model.findFirst({ where: { username } });
     }
 }
