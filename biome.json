@@ -24,7 +24,8 @@
 				"noCommaOperator": "off"
 			},
 			"complexity": {
-				"useLiteralKeys": "off"
+				"useLiteralKeys": "off",
+				"noUselessEmptyExport":"off"
 			}
 		},
 		"ignore": [
