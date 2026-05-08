@@ -4,6 +4,7 @@ export class SmtpServers {
         readonly provider?: string,
         readonly name?: string,
         readonly port?: number,
+        readonly state?: boolean,
         readonly created_at?: Date,
         readonly updated_at?: Date
     ) { }
