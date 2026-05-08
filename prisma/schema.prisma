@@ -108,3 +108,23 @@ model users {
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
   updated_at     DateTime? @default(now()) @db.Timestamptz(6)
 }
+
+model nexlify_configuration {
+  id_configuration          BigInt    @id @default(autoincrement())
+  sender_email              String    @db.VarChar(255)
+  sender_name               String?   @db.VarChar(255)
+  reply_to_email            String?   @db.VarChar(255)
+  mail_application_password String?
+  id_smtp_server            BigInt?
+  daily_send_limit          Int?      @default(500)
+  max_retries               Int?      @default(3) @db.SmallInt
+  retry_interval_seconds    Int?      @default(60) @db.SmallInt
+  email_header_text         String?
+  email_header_html         String?
+  email_header_img_url      String?
+  email_footer_text         String?
+  email_footer_html         String?
+  email_footer_img_url      String?
+  created_at                DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime? @default(now()) @db.Timestamptz(6)
+}
