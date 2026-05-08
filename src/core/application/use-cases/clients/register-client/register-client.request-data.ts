@@ -32,7 +32,7 @@ export class RegisterClientRequestData {
 
     @IsOptional()
     @IsString()
-    user_secod_surname?: string;
+    user_second_surname?: string;
 
 }
 

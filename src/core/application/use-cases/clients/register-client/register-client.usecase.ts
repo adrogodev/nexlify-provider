@@ -20,7 +20,7 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
             user_first_name: values.user_first_name,
             user_second_name: values.user_second_name || null,
             user_first_surname: values.user_first_surname,
-            user_secod_surname: values.user_secod_surname || null
+            user_second_surname: values.user_second_surname || null
         })
 
         return true;
