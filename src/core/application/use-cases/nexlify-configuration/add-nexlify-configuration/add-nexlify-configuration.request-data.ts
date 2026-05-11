@@ -11,51 +11,51 @@ export class AddNexlifyConfigurationRequestData {
 
     @IsOptional()
     @IsString()
-    reply_to_email: Nullable<string>;
+    reply_to_email?: string;
 
     @IsString()
     @IsNotEmpty()
     mail_application_password: string;
 
-    @IsOptional()
     @IsNumber()
+    @IsNotEmpty()
     id_smtp_server: number;
 
     @IsOptional()
     @IsNumber()
-    daily_send_limit: Nullable<number>;
+    daily_send_limit?: number;
 
     @IsOptional()
     @IsNumber()
-    max_retries: Nullable<number>;
+    max_retries?: number;
 
     @IsOptional()
     @IsNumber()
-    retry_interval_seconds: Nullable<number>;
+    retry_interval_seconds?: number;
 
     @IsOptional()
     @IsString()
-    email_header_text: Nullable<string>;
+    email_header_text?: string;
 
     @IsOptional()
     @IsString()
-    email_header_html: Nullable<string>;
+    email_header_html?: string;
 
     @IsOptional()
     @IsString()
-    email_header_img_url: Nullable<string>;
+    email_header_img_url?: string;
 
     @IsOptional()
     @IsString()
-    email_footer_text: Nullable<string>;
+    email_footer_text?: string;
 
     @IsOptional()
     @IsString()
-    email_footer_html: Nullable<string>;
+    email_footer_html?: string;
 
     @IsOptional()
     @IsString()
-    email_footer_img_url: Nullable<string>;
+    email_footer_img_url?: string;
 }
 
 export type AddNexlifyConfigurationInput = AddNexlifyConfigurationRequestData;
