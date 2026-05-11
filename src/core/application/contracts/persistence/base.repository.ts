@@ -1,6 +1,12 @@
 type DBAutoFields = 'created_at' | 'updated_at';
 
-export type EntityInput<T, TIdKey extends keyof T> = Omit<T, TIdKey | Extract<DBAutoFields, keyof T>>;
+type AllowUndefinedOnNullable<T> = {
+    [K in keyof T]: null extends T[K] ? T[K] | undefined : T[K];
+};
+
+export type EntityInput<T, TIdKey extends keyof T> = AllowUndefinedOnNullable<
+    Omit<T, TIdKey | Extract<DBAutoFields, keyof T>>
+>;
 
 export interface IBaseRepository<T, TIdKey extends keyof T> {
     getAllAsync(): Promise<T[]>;
