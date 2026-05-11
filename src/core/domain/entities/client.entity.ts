@@ -1,16 +1,16 @@
 export class Client {
     constructor(
-        readonly id?: bigint,
-        readonly id_state?: number,
-        readonly name?: string,
-        readonly email?: string,
-        readonly cell_callsign?: string,
-        readonly cell_phone?: string,
-        readonly user_first_name?: string,
-        readonly user_second_name?: string,
-        readonly user_first_surname?: string,
-        readonly user_second_surname?: string,
-        readonly created_at?: Date,
-        readonly updated_at?: Date
+        readonly id_client: bigint,
+        readonly id_state: Nullable<number>,
+        readonly name: Nullable<string>,
+        readonly email: Nullable<string>,
+        readonly cell_callsign: Nullable<string>,
+        readonly cell_phone: Nullable<string>,
+        readonly user_first_name: Nullable<string>,
+        readonly user_second_name: Nullable<string>,
+        readonly user_first_surname: Nullable<string>,
+        readonly user_second_surname: Nullable<string>,
+        readonly created_at: Nullable<Date>,
+        readonly updated_at: Nullable<Date>
     ) { }
 }

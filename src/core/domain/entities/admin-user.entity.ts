@@ -1,15 +1,14 @@
-export class AdmiUser {
+export class AdminUser {
     constructor(
-        readonly id?: bigint,
-        readonly name?: string,
-        readonly surname?: string,
-        readonly username?: string,
-        readonly password?: string,
-        readonly ipConnection?: string,
-        readonly authToken?: string,
-        readonly recoveryTokenData?: string,
-        readonly isActive?: boolean,
-        readonly createdAt?: Date,
-        readonly updatedAt?: Date,
+        readonly id_user: bigint,
+        readonly name: Nullable<string>,
+        readonly surname: Nullable<string>,
+        readonly username: Nullable<string>,
+        readonly password: Nullable<string>,
+        readonly ip_connection: Nullable<string>,
+        readonly auth_token: Nullable<string>,
+        readonly is_active: Nullable<boolean>,
+        readonly created_at: Nullable<Date>,
+        readonly updated_at: Nullable<Date>
     ) { }
 }

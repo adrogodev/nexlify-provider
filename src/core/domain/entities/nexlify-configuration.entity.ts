@@ -1,8 +1,8 @@
 export class NexlifyConfiguration {
     constructor(
-        readonly id: bigint,
+        readonly id_configuration: bigint,
         readonly sender_email: string,
-        readonly sender_name: string,
+        readonly sender_name: Nullable<string>,
         readonly reply_to_email: Nullable<string>,
         readonly mail_application_password: Nullable<string>,
         readonly id_smtp_server: Nullable<bigint>,
@@ -16,6 +16,6 @@ export class NexlifyConfiguration {
         readonly email_footer_html: Nullable<string>,
         readonly email_footer_img_url: Nullable<string>,
         readonly created_at: Nullable<Date>,
-        readonly updated_at: Nullable<Date>,
+        readonly updated_at: Nullable<Date>
     ) { }
 }
