@@ -24,8 +24,8 @@ export class AuthenticatedUserSecurity {
         const token = authHeader.replace(/(\s|bearer|Bearer)/g, '');
         const tokenDecode = this._jwt.getDataToken<TokenInfo>(token, _env.JWT_SECRET_KEY);
 
-        if (tokenDecode.isNotValid) throw new UnauthorizedException('Token inválido');
         if (tokenDecode.isExpired) throw new UnauthenticatedException('Token expirado');
+        if (tokenDecode.isNotValid) throw new UnauthorizedException('Token inválido');
 
         const content = TokenInfo.create((tokenDecode.data as JWTPayload<TokenInfo>).payload);
 
