@@ -9,8 +9,8 @@ export class AddNexlifyConfigurationRequestData {
     @IsNotEmpty()
     sender_name: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     reply_to_email?: string;
 
     @IsString()
@@ -18,43 +18,43 @@ export class AddNexlifyConfigurationRequestData {
     mail_application_password: string;
 
     @IsNumber()
-    @IsNotEmpty()
-    id_smtp_server: number;
-
     @IsOptional()
+    id_smtp_server?: number;
+
     @IsNumber()
+    @IsOptional()
     daily_send_limit?: number;
 
-    @IsOptional()
     @IsNumber()
+    @IsOptional()
     max_retries?: number;
 
-    @IsOptional()
     @IsNumber()
+    @IsOptional()
     retry_interval_seconds?: number;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     email_header_text?: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     email_header_html?: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     email_header_img_url?: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     email_footer_text?: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     email_footer_html?: string;
 
-    @IsOptional()
     @IsString()
+    @IsOptional()
     email_footer_img_url?: string;
 }
 

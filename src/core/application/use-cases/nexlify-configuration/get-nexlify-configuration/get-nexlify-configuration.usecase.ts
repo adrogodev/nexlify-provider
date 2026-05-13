@@ -16,7 +16,9 @@ export class GetNexlifyConfigurationUseCase implements UseCase<null, NexlifyConf
 
         const configuration: Nullable<NexlifyConfiguration> = await this._nexlifyConfigurationRepository.findConfiguration();
 
-        const smtp: Nullable<SmtpServers> = await this._smtpServerRepository.getByIdAsync(configuration?.id_smtp_server!);
+        let smtp: Nullable<SmtpServers> = null;
+
+        if (configuration?.id_smtp_server !== null) smtp = await this._smtpServerRepository.getByIdAsync(configuration?.id_smtp_server!);
 
         return NexlifyConfigurationMapper.toMap(configuration, smtp);
 
