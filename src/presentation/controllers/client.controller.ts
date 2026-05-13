@@ -1,9 +1,10 @@
 import { Body, Controller, HttpCode, Post, UseGuards } from "@nestjs/common";
 import { RegisterClientRequestData, RegisterClientUseCase } from "src/core/application/use-cases/clients/register-client";
 import { ClientResponse } from "src/core/domain/models";
-import { AuthGuard } from "src/infrastructure/guards";
+import { AuthGuard, ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
 
 @UseGuards(AuthGuard)
+@UseGuards(ConfigurationExistsGuard)
 @Controller('api/client')
 export class ClientContoller {
     constructor(
@@ -12,6 +13,7 @@ export class ClientContoller {
 
     @Post('register')
     @HttpCode(200)
+    @UseGuards(SmtpServerExistsGuard)
     async register(@Body() body: RegisterClientRequestData): Promise<ClientResponse<boolean>> {
         return new ClientResponse({
             ok: true,

@@ -14,7 +14,7 @@ export class SmtpServerController {
     @HttpCode(200)
     async add(@Body() body: AddSmtpServerRequestData): Promise<ClientResponse<boolean>> {
         return new ClientResponse({
-            ok: false,
+            ok: true,
             message: 'Servidor smpt agregado con exito',
             data: await this._addSmtpServer.run({ data: { ...body } })
         })

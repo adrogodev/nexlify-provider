@@ -13,7 +13,7 @@ export class EmailController {
     @HttpCode(200)
     async send(@Body() body: SendEmailRequestData): Promise<ClientResponse<boolean>> {
         return new ClientResponse({
-            ok: false,
+            ok: true,
             message: 'Correo enviado con exito',
             data: await this._sendEmailUseCase.run({ data: { ...body } })
         })
