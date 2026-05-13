@@ -12,9 +12,9 @@ export class NexlifyConfigurationMapper {
                 mail_application_password: configuration?.mail_application_password!
             },
             smtp: {
-                provider: smtp?.provider!,
-                name: smtp?.name!,
-                port: smtp?.port!
+                provider: smtp?.provider || null,
+                name: smtp?.name || null,
+                port: smtp?.port || null
             },
             limits: {
                 daily_send_limit: configuration?.daily_send_limit!,

@@ -13,9 +13,9 @@ interface SenderData {
 }
 
 interface SMTPData {
-    provider: string;
-    name: string,
-    port: number
+    provider?: Nullable<string>;
+    name?: Nullable<string>,
+    port?: Nullable<number>
 }
 
 interface LimitData {
