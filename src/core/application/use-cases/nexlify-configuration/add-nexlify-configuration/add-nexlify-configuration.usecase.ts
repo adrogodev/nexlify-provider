@@ -22,7 +22,7 @@ export class AddNexlifyConfigurationUseCase implements UseCase<AddNexlifyConfigu
             sender_name: values.sender_name,
             reply_to_email: normalize(values.reply_to_email),
             mail_application_password: values.mail_application_password,
-            id_smtp_server: BigInt(values.id_smtp_server),
+            id_smtp_server: values.id_smtp_server !== undefined ? BigInt(values.id_smtp_server) : null,
             daily_send_limit: normalize(values.daily_send_limit),
             max_retries: normalize(values.max_retries),
             retry_interval_seconds: normalize(values.retry_interval_seconds),
