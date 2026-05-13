@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import type { EntityInput, IBaseRepository } from '../../core/application/contracts/persistence/base.repository';
+import type { EntityInput, EntityUpdateInput, IBaseRepository } from '../../core/application/contracts/persistence/base.repository';
 import { PrismaService } from '../prisma/prisma.service';
 
 export abstract class BaseRepository<T, TIdKey extends keyof T> implements IBaseRepository<T, TIdKey> {
@@ -31,9 +31,10 @@ export abstract class BaseRepository<T, TIdKey extends keyof T> implements IBase
         return await this._model.create({ data: entity });
     }
 
-    public async update(id: T[TIdKey], entity: T): Promise<T | null> {
-        const { [this.idKey]: _id, created_at: _ca, updated_at: _ua, ...data } = entity as any;
-        await this._model.update({ where: { [this.idKey]: id }, data });
+    public async update(id: T[TIdKey], entity: T | EntityUpdateInput<T, TIdKey>): Promise<T | null> {
+        const entityWithAutoFields = entity as T & { created_at?: Date; updated_at?: Date };
+        const { [this.idKey]: _id, created_at: _ca, updated_at: _ua, ...data } = entityWithAutoFields;
+        await this._model.update({ where: { [this.idKey]: id }, data: { ...data, updated_at: new Date() } });
         return await this.getByIdAsync(id);
     }
 
