@@ -5,7 +5,7 @@ import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase } from "src/core/application/use-cases/admin-user";
 import { RegisterClientUseCase } from "src/core/application/use-cases/clients";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
-import { AddNexlifyConfigurationUseCase, GetNexlifyConfigurationUseCase } from "src/core/application/use-cases/nexlify-configuration";
+import { AddNexlifyConfigurationUseCase, GetNexlifyConfigurationUseCase, UpdateNexlifyConfigurationUseCase } from "src/core/application/use-cases/nexlify-configuration";
 import { AddSmtpServerUseCase } from "src/core/application/use-cases/smtp-server";
 import { HelpersModule } from "src/infrastructure/helpers/helpers.module";
 import { RepositoriesModule } from "src/infrastructure/repositories/repositories.module";
@@ -16,6 +16,7 @@ import { ClientContoller } from "./client.controller";
 import { EmailController } from "./email.controller";
 import { NexlifyConfigurationController } from "./nexlify-configuration.controller";
 import { SmtpServerController } from "./smtp-server.controller";
+import { ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
 
 @Module({
     imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
@@ -27,6 +28,8 @@ import { SmtpServerController } from "./smtp-server.controller";
         NexlifyConfigurationController
     ],
     providers: [
+        ConfigurationExistsGuard,
+        SmtpServerExistsGuard,
         {
             provide: RegisterClientUseCase,
             useFactory: (repo) => new RegisterClientUseCase(repo),
@@ -58,7 +61,11 @@ import { SmtpServerController } from "./smtp-server.controller";
             useFactory: (configurationRepo, SmtpRepo) => new GetNexlifyConfigurationUseCase(configurationRepo, SmtpRepo),
             inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY]
         },
-
+        {
+            provide: UpdateNexlifyConfigurationUseCase,
+            useFactory: (repo) => new UpdateNexlifyConfigurationUseCase(repo),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY]
+        },
     ]
 })
 
