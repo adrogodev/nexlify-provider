@@ -2,6 +2,8 @@ export class Client {
     constructor(
         readonly id_client: bigint,
         readonly id_state: Nullable<number>,
+        readonly id_type: Nullable<number>,
+        readonly id_number: Nullable<string>,
         readonly name: Nullable<string>,
         readonly email: Nullable<string>,
         readonly cell_callsign: Nullable<string>,

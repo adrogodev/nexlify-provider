@@ -1,18 +1,28 @@
-import { UseCase, UseCaseArgs } from "src/core/domain/models";
+import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { RegisterClientInput, RegisterClientRequestData } from "./register-client.request-data";
-import { IClientRepository } from "src/core/application/contracts/persistence";
+import { IClientCredentialsRepository, IClientRepository } from "src/core/application/contracts/persistence";
 import { UserState } from "src/core/domain/enum/user-state";
+import { IEncrypter, IJwtGenerator } from "src/core/application/contracts/infrastructure";
+import { v4 as uuidv4 } from "uuid";
+import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
+import { normalize } from "src/infrastructure/tools/normalize.tool";
+
 
 export class RegisterClientUseCase implements UseCase<RegisterClientInput, boolean> {
     constructor(
-        private readonly _clientRepository: IClientRepository
+        private readonly _clientRepository: IClientRepository,
+        private readonly _clientCredentialsRepository: IClientCredentialsRepository,
+        private readonly _jwt: IJwtGenerator,
+        private readonly _encryptor: IEncrypter
     ) { }
 
     public run = async (args: UseCaseArgs<RegisterClientRequestData>): Promise<boolean> => {
         const { ...values } = args.data;
 
-        await this._clientRepository.create({
+        const newClient = await this._clientRepository.create({
             id_state: UserState.ACTIVO,
+            id_type: values.id_type,
+            id_number: values.id_number,
             name: values.name,
             email: values.email,
             cell_callsign: values.cell_callsign,
@@ -23,6 +33,23 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
             user_second_surname: values.user_second_surname || null
         })
 
+        //Se genera el token y correo para asignacion de credenciales
+        const jti_key = uuidv4();
+        const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client) });
+        const assignCredetialsToken = this._jwt.createTokenWithExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}` });
+        const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, _env.ENCRYPT_KEY);
+
+        await this._clientCredentialsRepository.create({
+            id_client: newClient.id_client,
+            username: null,
+            password: null,
+            ip_connection: null,
+            assign_credentials_token_jti: jti_key,
+            auth_token: null,
+            recovery_token: null
+        })
+
         return true;
+
     };
 }

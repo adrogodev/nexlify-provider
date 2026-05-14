@@ -7,7 +7,7 @@ export class JwtGeneratorHelper implements IJwtGenerator {
 
     #ALGORITHM: Algorithm = "HS512";
 
-    public createTokenWithExpiration = <T>(options: { data: T; key: string; expiresIn: any; }): string => {
+    public createTokenWithExpiration = <T>(options: { data: T; key: string; expiresIn: string; }): string => {
         const { ...values } = options;
         values.key = values.key === "" ? "k3yjw7k73y" : values.key;
         const timeElapsed = Date.now();

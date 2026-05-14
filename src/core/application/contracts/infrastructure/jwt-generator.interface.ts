@@ -10,7 +10,7 @@ export interface JWTPayload<T> {
 
 export interface IJwtGenerator {
 
-    createTokenWithExpiration<T>(options: { data: T, key: string, expiresIn }): string;
+    createTokenWithExpiration<T>(options: { data: T, key: string, expiresIn: string }): string;
 
     getDataToken<T>(token: string, key: string): TokenData<Nullable<JWTPayload<T>>>;
 }

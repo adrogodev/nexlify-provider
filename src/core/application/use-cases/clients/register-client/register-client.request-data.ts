@@ -1,6 +1,14 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class RegisterClientRequestData {
+    @IsNumber()
+    @IsNotEmpty()
+    id_type: number;
+
+    @IsString()
+    @IsNotEmpty()
+    id_number: string;
+
     @IsString()
     @IsNotEmpty()
     name: string;

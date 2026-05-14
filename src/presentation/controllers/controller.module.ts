@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR } from "src/core/application/contracts/infrastructure";
-import { ADMIN_USER_REPOSITORY, CLIENT_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
+import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
 import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase } from "src/core/application/use-cases/admin-user";
 import { RegisterClientUseCase } from "src/core/application/use-cases/clients";
@@ -32,8 +32,8 @@ import { ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastruct
         SmtpServerExistsGuard,
         {
             provide: RegisterClientUseCase,
-            useFactory: (repo) => new RegisterClientUseCase(repo),
-            inject: [CLIENT_REPOSITORY]
+            useFactory: (repo, credsRepo, jwtGen, encryptor) => new RegisterClientUseCase(repo, credsRepo, jwtGen, encryptor),
+            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, JWT_GENERATOR, ENCRYPTER]
         },
         {
             provide: AuthAdminUserUseCase,
