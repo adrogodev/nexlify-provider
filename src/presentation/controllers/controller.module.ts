@@ -53,8 +53,8 @@ import { ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastruct
         },
         {
             provide: AddNexlifyConfigurationUseCase,
-            useFactory: (repo) => new AddNexlifyConfigurationUseCase(repo),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY]
+            useFactory: (repo, smtpRepo) => new AddNexlifyConfigurationUseCase(repo, smtpRepo),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY]
         },
         {
             provide: GetNexlifyConfigurationUseCase,

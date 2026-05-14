@@ -1,13 +1,15 @@
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AddNexlifyConfigurationInput, AddNexlifyConfigurationRequestData } from "./add-nexlify-configuration.request-data";
-import { INexlifyConfigurationRepository } from "src/core/application/contracts/persistence";
+import { INexlifyConfigurationRepository, ISmtpServerRepository } from "src/core/application/contracts/persistence";
 import { normalize } from "src/infrastructure/tools/normalize.tool";
 import { NexlifyConfiguration } from "src/core/domain/entities/nexlify-configuration.entity";
 import { AlreadyExistsException, NotFoundException } from "src/core/domain/exceptions";
+import { SmtpServers } from "src/core/domain/entities/smtp-server.entity";
 
 export class AddNexlifyConfigurationUseCase implements UseCase<AddNexlifyConfigurationInput, boolean> {
     constructor(
-        private readonly _nexlifyConfigurationRepository: INexlifyConfigurationRepository
+        private readonly _nexlifyConfigurationRepository: INexlifyConfigurationRepository,
+        private readonly _smtpServerRepository: ISmtpServerRepository
     ) { }
 
     public run = async (args: UseCaseArgs<AddNexlifyConfigurationRequestData>): Promise<boolean> => {
@@ -16,6 +18,11 @@ export class AddNexlifyConfigurationUseCase implements UseCase<AddNexlifyConfigu
         const configuration: Nullable<NexlifyConfiguration> = await this._nexlifyConfigurationRepository.findConfiguration();
 
         if (configuration !== null) throw new AlreadyExistsException("Ya se ha realizado la configuración para esta cuenta");
+
+        if (values.id_smtp_server !== undefined || values.id_smtp_server !== null) {
+            const smtp: Nullable<SmtpServers> = await this._smtpServerRepository.getByIdAsync(BigInt(values.id_smtp_server!));
+            if (smtp === null) throw new NotFoundException("El servidor smtp que intenta agregar no encontrado");
+        }
 
         await this._nexlifyConfigurationRepository.create({
             sender_email: values.sender_email,
