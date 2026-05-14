@@ -20,19 +20,23 @@ model admin_user {
 }
 
 model client_credentials {
-  id_client_credential Int       @id @default(autoincrement())
-  username             String?   @db.VarChar(255)
-  password             String?
-  ip_connection        String?   @db.VarChar(255)
-  auth_token           String?
-  recovery_token       String?
-  created_at           DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime? @default(now()) @db.Timestamptz(6)
+  id_client_credential         BigInt    @id @default(autoincrement())
+  id_client                    BigInt?
+  username                     String?   @db.VarChar(255)
+  password                     String?
+  ip_connection                String?   @db.VarChar(255)
+  assign_credentials_token_jti String?   @db.VarChar(50)
+  auth_token                   String?
+  recovery_token               String?
+  created_at                   DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model clients {
   id_client           BigInt    @id @default(autoincrement())
   id_state            Int?      @db.SmallInt
+  id_type             Int?      @db.SmallInt
+  id_number           String?   @db.VarChar(50)
   name                String?   @db.VarChar(255)
   email               String?   @db.VarChar(255)
   cell_callsign       String?   @db.VarChar(5)
@@ -47,7 +51,7 @@ model clients {
 
 model diffusion_information {
   id_diffusion_information  BigInt    @id @default(autoincrement())
-  id_client                 BigInt    @default(autoincrement())
+  id_client                 BigInt?
   sender_email              String?   @db.VarChar(255)
   mail_application_password String?
   id_smtp_server            BigInt?
@@ -58,7 +62,7 @@ model diffusion_information {
 
 model nexlify_keys {
   id_nexlify_key BigInt    @id @default(autoincrement())
-  id_client      BigInt    @default(autoincrement())
+  id_client      BigInt?
   api_key        String?
   state          Boolean?
   created_at     DateTime? @default(now()) @db.Timestamptz(6)
@@ -67,7 +71,7 @@ model nexlify_keys {
 
 model nexlify_keys_logs {
   id_nexlify_key_log BigInt    @id @default(autoincrement())
-  id_client          BigInt    @default(autoincrement())
+  id_client          BigInt?
   api_key            String?
   created_at         DateTime? @default(now()) @db.Timestamptz(6)
   updated_at         DateTime? @default(now()) @db.Timestamptz(6)
@@ -96,6 +100,8 @@ model templates {
 model users {
   id_user        BigInt    @id @default(autoincrement())
   id_client      BigInt?
+  id_type        Int?      @db.SmallInt
+  id_number      String?   @db.VarChar(50)
   first_name     String?   @db.VarChar(255)
   second_name    String?   @db.VarChar(255)
   first_surname  String?   @db.VarChar(255)
@@ -127,4 +133,14 @@ model nexlify_configuration {
   email_footer_img_url      String?
   created_at                DateTime? @default(now()) @db.Timestamptz(6)
   updated_at                DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model id_types {
+  id_type     Int       @id @default(autoincrement()) @db.SmallInt
+  code        String    @unique @db.VarChar(10)
+  name        String    @db.VarChar(255)
+  description String?
+  is_active   Boolean?  @default(true)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 }
