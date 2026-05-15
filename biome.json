@@ -21,7 +21,8 @@
 				"useTemplate": "off",
 				"useConst": "off",
 				"noParameterAssign": "off",
-				"noCommaOperator": "off"
+				"noCommaOperator": "off",
+				"noUnusedTemplateLiteral":"off"
 			},
 			"complexity": {
 				"useLiteralKeys": "off",

@@ -10,11 +10,14 @@
         "experimentalDecorators": true,
         "allowSyntheticDefaultImports": true,
         "target": "ES2023",
+        "jsx": "react-jsx",
         "sourceMap": true,
         "outDir": "./dist",
         "baseUrl": "./",
         "paths": {
-            "@/generated/*": ["generated/*"]
+            "@/generated/*": [
+                "generated/*"
+            ]
         },
         "incremental": true,
         "skipLibCheck": true,
