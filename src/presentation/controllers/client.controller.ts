@@ -4,7 +4,8 @@ import { ClientResponse } from "src/core/domain/models";
 import { AuthGuard, ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
 
 @UseGuards(AuthGuard)
-@UseGuards(ConfigurationExistsGuard)
+//Revisar middleware, no se comporta como debe
+// @UseGuards(ConfigurationExistsGuard)
 @Controller('api/client')
 export class ClientContoller {
     constructor(
