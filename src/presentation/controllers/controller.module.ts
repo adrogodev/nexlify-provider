@@ -17,6 +17,7 @@ import { EmailController } from "./email.controller";
 import { NexlifyConfigurationController } from "./nexlify-configuration.controller";
 import { SmtpServerController } from "./smtp-server.controller";
 import { ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
+import { TEMPLATE_SERVICE } from "src/core/application/contracts/services/template.service";
 
 @Module({
     imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
@@ -32,8 +33,8 @@ import { ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastruct
         SmtpServerExistsGuard,
         {
             provide: RegisterClientUseCase,
-            useFactory: (repo, credsRepo, jwtGen, encryptor) => new RegisterClientUseCase(repo, credsRepo, jwtGen, encryptor),
-            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, JWT_GENERATOR, ENCRYPTER]
+            useFactory: (repo, credsRepo, jwtGen, encryptor, configRepo, smtpRepo, tmpService, mailerService) => new RegisterClientUseCase(repo, credsRepo, jwtGen, encryptor, configRepo, smtpRepo, tmpService, mailerService),
+            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, TEMPLATE_SERVICE, MAILER_SERVICE]
         },
         {
             provide: AuthAdminUserUseCase,
