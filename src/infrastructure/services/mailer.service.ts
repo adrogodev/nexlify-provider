@@ -39,6 +39,10 @@ export class MailerService implements IMailerService {
             auth: {
                 user: config.user,
                 pass: config.password
+            },
+            tls: {
+                ciphers: 'SSLv3',
+                rejectUnauthorized: false
             }
         });
 
