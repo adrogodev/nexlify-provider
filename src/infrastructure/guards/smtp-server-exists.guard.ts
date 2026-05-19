@@ -10,8 +10,8 @@ export class SmtpServerExistsGuard implements CanActivate {
 
     async canActivate(_: ExecutionContext): Promise<boolean> {
         const smtpServers = await this._smtpServerRepository.getAllAsync();
-        if (smtpServers.length > 0) {
-            throw new AlreadyExistsException('Ya existe un servidor SMTP registrado');
+        if (smtpServers.length < 0) {
+            throw new AlreadyExistsException('No existe un servidor SMTP registrado');
         }
         return true;
     }
