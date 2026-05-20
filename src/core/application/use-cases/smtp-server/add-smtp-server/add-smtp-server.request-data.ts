@@ -7,7 +7,7 @@ export class AddSmtpServerRequestData {
 
     @IsString()
     @IsNotEmpty()
-    name: string;
+    host: string;
 
     @IsNumber()
     @IsNotEmpty()

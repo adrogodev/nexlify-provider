@@ -10,7 +10,7 @@ export class SmtpServerRepository extends BaseRepository<smtp_servers, 'id_smpt_
         super(prisma, 'smtp_servers', 'id_smpt_server');
     }
 
-    public async findByNameAndProvider(name: string, provider: string): Promise<smtp_servers | null> {
-        return await this._model.findFirst({ where: { name, provider } });
+    public async findByNameAndProvider(provider: string, host: string): Promise<smtp_servers | null> {
+        return await this._model.findFirst({ where: { provider, host } });
     }
 }

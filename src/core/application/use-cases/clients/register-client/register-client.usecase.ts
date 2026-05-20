@@ -53,7 +53,7 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
 
         const mailerPayload: MailerPayload = {
             transporter: {
-                host: smpt?.name!,
+                host: smpt?.host!,
                 port: smpt?.port!,
                 secure: false,
                 user: configuration?.sender_email!,

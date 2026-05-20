@@ -13,7 +13,7 @@ export class NexlifyConfigurationMapper {
             },
             smtp: {
                 provider: smtp?.provider || null,
-                name: smtp?.name || null,
+                name: smtp?.host || null,
                 port: smtp?.port || null
             },
             limits: {
