@@ -55,6 +55,10 @@ model diffusion_information {
   sender_email              String?   @db.VarChar(255)
   mail_application_password String?
   id_smtp_server            BigInt?
+  client_id                 String?   @db.VarChar(255)
+  client_secret             String?   @db.VarChar(255)
+  tenant_id                 String?   @db.VarChar(255)
+  refresh_token             String?
   is_default                Boolean?
   created_at                DateTime? @default(now()) @db.Timestamptz(6)
   updated_at                DateTime? @default(now()) @db.Timestamptz(6)
@@ -122,6 +126,10 @@ model nexlify_configuration {
   reply_to_email            String?   @db.VarChar(255)
   mail_application_password String?
   id_smtp_server            BigInt?
+  client_id                 String?   @db.VarChar(255)
+  client_secret             String?   @db.VarChar(255)
+  tenant_id                 String?   @db.VarChar(255)
+  refresh_token             String?
   daily_send_limit          Int?      @default(500)
   max_retries               Int?      @default(3) @db.SmallInt
   retry_interval_seconds    Int?      @default(60) @db.SmallInt

@@ -21,6 +21,22 @@ export class AddNexlifyConfigurationRequestData {
     @IsOptional()
     id_smtp_server?: number;
 
+    @IsString()
+    @IsOptional()
+    client_id?: string;
+
+    @IsString()
+    @IsOptional()
+    client_secret?: string;
+
+    @IsString()
+    @IsOptional()
+    tenant_id?: string;
+
+    @IsString()
+    @IsOptional()
+    refresh_token?: string;
+
     @IsNumber()
     @IsOptional()
     daily_send_limit?: number;
