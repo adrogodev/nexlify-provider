@@ -9,7 +9,6 @@ import { ITemplateService } from "src/core/application/contracts/services/templa
 import { IMailerService, MailerPayload } from "src/core/application/contracts/services";
 import { NexlifyConfiguration } from "src/core/domain/entities/nexlify-configuration.entity";
 
-
 export class RegisterClientUseCase implements UseCase<RegisterClientInput, boolean> {
     constructor(
         private readonly _clientRepository: IClientRepository,
@@ -45,11 +44,13 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
         // const assignCredetialsToken = this._jwt.createTokenWithExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}` });
         // const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, _env.ENCRYPT_KEY);
 
-        const assignClientCredentialsTemplate: Nullable<string> = await this._templateServices.assignClientCredentials();
 
         //Construir y enviar correo electronico
         const configuration: Nullable<NexlifyConfiguration> = await this._nexlifyConfigurationRepository.findConfiguration();
         const smpt = await this._smtpServerRepository.getByIdAsync(configuration?.id_smtp_server!);
+
+        const support_email = configuration?.reply_to_email !== null ? configuration!.reply_to_email : configuration.sender_email;
+        const assignClientCredentialsTemplate: Nullable<string> = await this._templateServices.assignClientCredentials(newClient.name!, 'https://www.google.com/', support_email);
 
         const mailerPayload: MailerPayload = {
             transporter: {
