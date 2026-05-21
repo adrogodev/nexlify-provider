@@ -18,6 +18,8 @@ import { NexlifyConfigurationController } from "./nexlify-configuration.controll
 import { SmtpServerController } from "./smtp-server.controller";
 import { ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
 import { TEMPLATE_SERVICE } from "src/core/application/contracts/services/template.service";
+import { VerifyCredentialAssignmentTokenUseCase } from "src/core/application/use-cases/verify";
+import { VerifyController } from "./verify.controller";
 
 @Module({
     imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
@@ -26,7 +28,8 @@ import { TEMPLATE_SERVICE } from "src/core/application/contracts/services/templa
         ClientContoller,
         SmtpServerController,
         EmailController,
-        NexlifyConfigurationController
+        NexlifyConfigurationController,
+        VerifyController
     ],
     providers: [
         ConfigurationExistsGuard,
@@ -66,6 +69,11 @@ import { TEMPLATE_SERVICE } from "src/core/application/contracts/services/templa
             provide: UpdateNexlifyConfigurationUseCase,
             useFactory: (repo) => new UpdateNexlifyConfigurationUseCase(repo),
             inject: [NEXLIFY_CONFIGURATION_REPOSITORY]
+        },
+        {
+            provide: VerifyCredentialAssignmentTokenUseCase,
+            useFactory: (repo, jwtGen, encryptor) => new VerifyCredentialAssignmentTokenUseCase(repo, jwtGen, encryptor),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, JWT_GENERATOR, ENCRYPTER]
         },
     ]
 })
