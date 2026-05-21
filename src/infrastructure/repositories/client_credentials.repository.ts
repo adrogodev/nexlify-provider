@@ -9,4 +9,12 @@ export class ClientCredentialsRepository extends BaseRepository<client_credentia
     constructor(prisma: PrismaService) {
         super(prisma, 'client_credentials', 'id_client_credential');
     }
+
+    public async findByTokenJTI(jti: string): Promise<Nullable<client_credentials>> {
+        return await this._model.findFirst({
+            where: {
+                assign_credentials_token_jti: jti
+            }
+        })
+    }
 }
