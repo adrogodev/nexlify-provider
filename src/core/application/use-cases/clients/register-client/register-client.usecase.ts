@@ -40,9 +40,10 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
 
         //Se genera el token y correo para asignacion de credenciales
         const jti_key = uuidv4();
-        // const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client) });
-        // const assignCredetialsToken = this._jwt.createTokenWithExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}` });
-        // const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, _env.ENCRYPT_KEY);
+        const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client) });
+        const assignCredetialsToken = this._jwt.createTokenWithExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}` });
+        const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, _env.ENCRYPT_KEY);
+        const assign_path: string = `${_env.PLATFORM_URL}?token=${tokenChiper}`;
 
 
         //Construir y enviar correo electronico
@@ -50,7 +51,7 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
         const smpt = await this._smtpServerRepository.getByIdAsync(configuration?.id_smtp_server!);
 
         const support_email = configuration?.reply_to_email !== null ? configuration!.reply_to_email : configuration.sender_email;
-        const assignClientCredentialsTemplate: Nullable<string> = await this._templateServices.assignClientCredentials(newClient.name!, 'https://www.google.com/', support_email);
+        const assignClientCredentialsTemplate: Nullable<string> = await this._templateServices.assignClientCredentials(newClient.name!, assign_path, support_email);
 
         const mailerPayload: MailerPayload = {
             transporter: {
