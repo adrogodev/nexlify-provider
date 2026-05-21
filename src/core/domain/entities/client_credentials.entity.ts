@@ -1,7 +1,7 @@
 export class ClientCredentials {
     constructor(
         readonly id_client_credential: bigint,
-        readonly id_client: bigint,
+        readonly id_client: Nullable<bigint>,
         readonly username: Nullable<string>,
         readonly password: Nullable<string>,
         readonly ip_connection: Nullable<string>,
