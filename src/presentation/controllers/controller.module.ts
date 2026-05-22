@@ -73,7 +73,7 @@ import { VerifyController } from "./verify.controller";
         {
             provide: VerifyCredentialAssignmentTokenUseCase,
             useFactory: (repo, jwtGen, encryptor) => new VerifyCredentialAssignmentTokenUseCase(repo, jwtGen, encryptor),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, JWT_GENERATOR, ENCRYPTER]
+            inject: [CLIENT_CREDENTIALS_REPOSITORY, JWT_GENERATOR, ENCRYPTER]
         },
     ]
 })

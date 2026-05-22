@@ -12,13 +12,13 @@ export class VerifyController {
     @HttpCode(200)
     verify(): string { return 'Nexlify provider corriendo exitosamente...' }
 
-    @Get('verify-credential-assignment-token')
+    @Get('credential-assignment')
     @HttpCode(200)
-    async verifyCredentialAssignmentToken(@Query() token): Promise<ClientResponse<void>> {
+    async verifyCredentialAssignmentToken(@Query('token') token: string): Promise<ClientResponse<void>> {
         return new ClientResponse({
             ok: true,
             message: 'Token de asignacion de contraseña validado exitosamente',
-            data: await this._verifyCredentialAssignmentTokenUseCase.run(token)
+            data: await this._verifyCredentialAssignmentTokenUseCase.run({ data: { token } })
         })
     }
 }
