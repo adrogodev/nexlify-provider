@@ -5,9 +5,33 @@ export const normalize = <T>(value: T | null | undefined): T | undefined =>
 
 
 export const normalizeToken = (token: string): string => {
-    if (typeof token !== 'string' || token.trim().length === 0) {
-        throw new ValidationException({ token: ['Token de asignación de credeciales invalido'] })
+    if (typeof token !== 'string') {
+        throw new ValidationException({
+            token: ['Token de asignación de credenciales inválido']
+        });
     }
 
-    return token.replace(/ /g, '+');
-}
+    const trimmedToken = token.trim();
+
+    if (!trimmedToken.length) {
+        throw new ValidationException({
+            token: ['Token de asignación de credenciales inválido']
+        });
+    }
+
+    try {
+        /**
+         * Decodifica:
+         * %2B => +
+         * %2F => /
+         * etc.
+         */
+        const decodedToken = decodeURIComponent(trimmedToken);
+
+        return decodedToken.replace(/ /g, '+');
+    } catch {
+        throw new ValidationException({
+            token: ['Token de asignación de credenciales mal formado']
+        });
+    }
+};
