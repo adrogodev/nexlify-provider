@@ -1,12 +1,12 @@
 export class SmtpServers {
     constructor(
-        readonly id_smpt_server: bigint,
-        readonly provider: Nullable<string>,
-        readonly host: Nullable<string>,
-        readonly port: Nullable<number>,
-        readonly auth_type: Nullable<string>,
-        readonly state: Nullable<boolean>,
-        readonly created_at: Nullable<Date>,
-        readonly updated_at: Nullable<Date>
+        public id_smpt_server: bigint,
+        public provider: Nullable<string>,
+        public host: Nullable<string>,
+        public port: Nullable<number>,
+        public auth_type: Nullable<string>,
+        public state: Nullable<boolean>,
+        public created_at: Nullable<Date>,
+        public updated_at: Nullable<Date>
     ) { }
 }
