@@ -1,5 +1,6 @@
 import { IEncrypter, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository } from "src/core/application/contracts/persistence";
+import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
 import { NotFoundException, ValidationException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
@@ -32,7 +33,7 @@ export class VerifyCredentialAssignmentTokenUseCase implements UseCase<{ token: 
         }
 
         const { jti } = assignCredetialsTokenInfo;
-        const client_credentials = await this._clientCredentialsRepository.findByTokenJTI(jti!);
+        const client_credentials: Nullable<ClientCredentials> = await this._clientCredentialsRepository.findByTokenJTI(jti!);
 
         if (client_credentials === null) throw new NotFoundException('No se ha encontrado registro con el jti obtenido')
 

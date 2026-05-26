@@ -1,8 +1,8 @@
-import type { nexlify_configuration } from '@prisma/client';
+import { NexlifyConfiguration } from 'src/core/domain/entities/nexlify-configuration.entity';
 import type { IBaseRepository } from './base.repository';
 
 export const NEXLIFY_CONFIGURATION_REPOSITORY = Symbol('INexlifyConfigurationRepository');
 
-export interface INexlifyConfigurationRepository extends IBaseRepository<nexlify_configuration, 'id_configuration'> {
-    findConfiguration(): Promise<Nullable<nexlify_configuration>>;
+export interface INexlifyConfigurationRepository extends IBaseRepository<NexlifyConfiguration, 'id_configuration'> {
+    findConfiguration(): Promise<Nullable<NexlifyConfiguration>>;
 }

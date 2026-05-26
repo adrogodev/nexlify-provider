@@ -1,8 +1,8 @@
-import { client_credentials } from "@prisma/client";
+import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
 import { IBaseRepository } from "./base.repository";
 
 export const CLIENT_CREDENTIALS_REPOSITORY = Symbol("IClientCredentialsRepository");
 
-export interface IClientCredentialsRepository extends IBaseRepository<client_credentials, 'id_client_credential'> {
-    findByTokenJTI(jti: string): Promise<Nullable<client_credentials>>;
+export interface IClientCredentialsRepository extends IBaseRepository<ClientCredentials, 'id_client_credential'> {
+    findByTokenJTI(jti: string): Promise<Nullable<ClientCredentials>>;
 }
