@@ -26,6 +26,24 @@ export class JwtGeneratorHelper implements IJwtGenerator {
         });
     }
 
+    public createTokenWithoutExpiration = <T>(options: { data: T; key: string; }): string => {
+        const { ...values } = options;
+        values.key = values.key === "" ? "k3yjw7k73y" : values.key;
+        const timeElapsed = Date.now();
+        const today = new Date(timeElapsed);
+        const timestamp = today.toISOString();
+
+        const payload: JWTPayload<T> = {
+            payload: JSONParse(values.data),
+            check: true,
+            date: timestamp
+        };
+
+        return jwt.sign(payload, values.key, {
+            algorithm: this.#ALGORITHM
+        });
+    }
+
     public getDataToken = <T>(token: string, key: string): TokenData<Nullable<JWTPayload<T>>> => {
         let isExpired = false;
         let isNotValid = false;

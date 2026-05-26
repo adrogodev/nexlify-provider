@@ -41,7 +41,7 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
         //Se genera el token y correo para asignacion de credenciales
         const jti_key = uuidv4();
         const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client) });
-        const assignCredetialsToken = this._jwt.createTokenWithExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}h` });
+        const assignCredetialsToken = this._jwt.createTokenWithoutExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY });
         const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, _env.ENCRYPT_KEY);
         const assign_path: string = `${_env.PLATFORM_URL}?token=${encodeURIComponent(tokenChiper)}`;
 

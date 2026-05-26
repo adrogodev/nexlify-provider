@@ -12,5 +12,7 @@ export interface IJwtGenerator {
 
     createTokenWithExpiration<T>(options: { data: T, key: string, expiresIn: string }): string;
 
+    createTokenWithoutExpiration<T>(options: { data: T, key: string }): string;
+
     getDataToken<T>(token: string, key: string): TokenData<Nullable<JWTPayload<T>>>;
 }
