@@ -1,7 +1,7 @@
 import { IEncrypter, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository } from "src/core/application/contracts/persistence";
 import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
-import { NotFoundException, ValidationException } from "src/core/domain/exceptions";
+import { ActionNotAllowedException, NotFoundException, NotMatchException, ValidationException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
 import { normalizeToken } from "src/infrastructure/tools/normalize.tool";
@@ -32,10 +32,14 @@ export class VerifyCredentialAssignmentTokenUseCase implements UseCase<{ token: 
             throw new ValidationException({ token: ['Token de asignación de credeciales invalido'] });
         }
 
-        const { jti } = assignCredetialsTokenInfo;
-        const client_credentials: Nullable<ClientCredentials> = await this._clientCredentialsRepository.findByTokenJTI(jti!);
+        const { id_user, jti } = assignCredetialsTokenInfo;
 
-        if (client_credentials === null) throw new NotFoundException('No se ha encontrado registro con el jti obtenido')
+        const client_credentials: Nullable<ClientCredentials> = await this._clientCredentialsRepository.findByClientId(BigInt(id_user)!);
+
+        if (client_credentials?.assign_credentials_token_jti === null && client_credentials.assign_credentials === false) throw new ActionNotAllowedException('Ya se ha intentado realizar la asignación de credenciales previamente, por favor contactar con el administador del sistema.')
+
+        if (client_credentials?.assign_credentials_token_jti !== jti) throw new NotMatchException('El jti del token no coicidiente con el cliente')
+
 
         client_credentials.assign_credentials_token_jti = null;
 

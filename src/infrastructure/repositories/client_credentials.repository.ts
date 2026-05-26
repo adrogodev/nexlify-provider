@@ -10,11 +10,15 @@ export class ClientCredentialsRepository extends BaseRepository<ClientCredential
         super(prisma, 'client_credentials', 'id_client_credential');
     }
 
-    public async findByTokenJTI(jti: string): Promise<Nullable<ClientCredentials>> {
+    public async findByClientId(id: bigint): Promise<Nullable<ClientCredentials>> {
         return await this._model.findFirst({
             where: {
-                assign_credentials_token_jti: jti
+                id_client: id
             }
         })
+    }
+
+    public async findByClientByUsername(username: string): Promise<Nullable<ClientCredentials>> {
+        return await this._model.findFirst({ where: { username } })
     }
 }
