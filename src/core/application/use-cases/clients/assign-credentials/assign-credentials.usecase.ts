@@ -1,0 +1,51 @@
+import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/contracts/infrastructure";
+import { IClientCredentialsRepository, IClientRepository } from "src/core/application/contracts/persistence";
+import { Client } from "src/core/domain/entities/client.entity";
+import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
+import { NotFoundException } from "src/core/domain/exceptions";
+import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
+import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
+import { normalizeToken } from "src/infrastructure/tools/normalize.tool";
+import { AssignCredentialsInput } from "./assign-credentials.request-data";
+import { UserState } from "src/core/domain/enum/user-state";
+
+
+export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput, boolean> {
+    constructor(
+        private readonly _clientRepository: IClientRepository,
+        private readonly _clientCredentialsRepository: IClientCredentialsRepository,
+        private readonly _jwt: IJwtGenerator,
+        private readonly _encryptor: IEncrypter,
+        private readonly _hash: IHashGenerator,
+    ) { }
+
+    public run = async (args: UseCaseArgs<AssignCredentialsInput>): Promise<boolean> => {
+        const { ...values } = args.data;
+
+        const token = normalizeToken(values.assign_creds_token);
+
+        const decryptedToken = this._encryptor.decrypt(token, _env.ENCRYPT_KEY);
+        const assignCredetialsToken = this._jwt.getDataToken<TokenInfo>(decryptedToken, _env.JWT_SECRET_KEY);
+
+        const { id_user } = assignCredetialsToken.data!.payload;
+
+        const client: Nullable<Client> = await this._clientRepository.getByIdAsync(BigInt(id_user));
+
+        if (client === null) throw new NotFoundException('Cliente para la asignación de credenciales de acceso no encontrado');
+
+        //Se activa el cliente
+        client.id_state = UserState.ACTIVO;
+        await this._clientRepository.update(client.id_client, client);
+
+        const client_credentials: Nullable<ClientCredentials> = await this._clientCredentialsRepository.findByClientId(client.id_client);
+
+        //Se registar las credenciales de acceso para el cliente
+        client_credentials!.username = values.username;
+        client_credentials!.password = this._hash.SHA256(values.password);
+        client_credentials!.assign_credentials = true
+
+        await this._clientCredentialsRepository.update(client_credentials!.id_client_credential, client_credentials!);
+
+        return true;
+    };
+}
