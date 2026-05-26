@@ -26,7 +26,7 @@ export class AuthAdminUserUseCase implements UseCase<AuthAdminUserInput, AuthDto
 
         if (!user.is_active) throw new UnauthorizedException();
 
-        const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(user.id_user) });
+        const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(user.id_user), admin: true });
 
         const authToken = this._jwt.createTokenWithExpiration({ data: tokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}h` });
 
