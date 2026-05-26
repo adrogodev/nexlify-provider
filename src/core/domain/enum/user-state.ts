@@ -1,4 +1,5 @@
 export enum UserState {
     ACTIVO = 1,
-    INACTIVO = 2
+    INACTIVO = 2,
+    HABILITACION_PENDIENTE = 3
 }

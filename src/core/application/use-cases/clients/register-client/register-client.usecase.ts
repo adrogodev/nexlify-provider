@@ -25,7 +25,7 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
         const { ...values } = args.data;
 
         const newClient = await this._clientRepository.create({
-            id_state: UserState.ACTIVO,
+            id_state: UserState.HABILITACION_PENDIENTE,
             id_type: values.id_type,
             id_number: values.id_number,
             name: values.name,
@@ -40,7 +40,7 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
 
         //Se genera el token y correo para asignacion de credenciales
         const jti_key = uuidv4();
-        const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client) });
+        const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client), admin: null });
         const assignCredetialsToken = this._jwt.createTokenWithoutExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY });
         const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, _env.ENCRYPT_KEY);
         const assign_path: string = `${_env.PLATFORM_URL}?token=${encodeURIComponent(tokenChiper)}`;
@@ -78,7 +78,8 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
             ip_connection: null,
             assign_credentials_token_jti: jti_key,
             auth_token: null,
-            recovery_token: null
+            recovery_token: null,
+            assign_credentials: false
         })
 
         return true;

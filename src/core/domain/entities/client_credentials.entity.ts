@@ -9,6 +9,7 @@ export class ClientCredentials {
         public auth_token: Nullable<string>,
         public recovery_token: Nullable<string>,
         public created_at: Nullable<Date>,
-        public updated_at: Nullable<Date>
+        public updated_at: Nullable<Date>,
+        public assign_credentials: Nullable<boolean>
     ) { }
 }
