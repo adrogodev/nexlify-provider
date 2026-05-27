@@ -1,5 +1,5 @@
 import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/contracts/infrastructure";
-import { IClientCredentialsRepository, IClientRepository } from "src/core/application/contracts/persistence";
+import { IClientCredentialsRepository, IClientRepository, INexlifyKeysLogsRepository, INexlifyKeysRepository } from "src/core/application/contracts/persistence";
 import { Client } from "src/core/domain/entities/client.entity";
 import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
 import { ActionNotAllowedException, NotFoundException } from "src/core/domain/exceptions";
@@ -14,6 +14,8 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
     constructor(
         private readonly _clientRepository: IClientRepository,
         private readonly _clientCredentialsRepository: IClientCredentialsRepository,
+        private readonly _nexlifyKey: INexlifyKeysRepository,
+        private readonly _nexlifyKeyLog: INexlifyKeysLogsRepository,
         private readonly _jwt: IJwtGenerator,
         private readonly _encryptor: IEncrypter,
         private readonly _hash: IHashGenerator,
@@ -46,6 +48,20 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
         client_credentials!.password = this._hash.SHA256(values.password);
 
         await this._clientCredentialsRepository.update(client_credentials!.id_client_credential, client_credentials!);
+
+        //Genera api-key para el cliente
+        const clientApiKey = `NexlifyApiKey${client.id_client}${new Date().toISOString()}`
+
+        await this._nexlifyKey.create({
+            id_client: client.id_client,
+            api_key: this._hash.SHA256(clientApiKey),
+            state: true
+        });
+
+        await this._nexlifyKeyLog.create({
+            id_client: client.id_client,
+            api_key: this._hash.SHA256(clientApiKey),
+        });
 
         return true;
     };
