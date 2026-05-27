@@ -77,9 +77,9 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
             password: null,
             ip_connection: null,
             assign_credentials_token_jti: jti_key,
+            checked_credential_assignment_token: false,
             auth_token: null,
-            recovery_token: null,
-            assign_credentials: false
+            recovery_token: null
         })
 
         return true;
