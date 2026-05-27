@@ -1,13 +1,14 @@
 import { IEncrypter, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository, INexlifyConfigurationRepository, ISmtpServerRepository } from "src/core/application/contracts/persistence";
+import { IMailerService, MailerPayload } from "src/core/application/contracts/services";
+import { ITemplateService } from "src/core/application/contracts/services/template.service";
+import { NexlifyConfiguration } from "src/core/domain/entities/nexlify-configuration.entity";
 import { UserState } from "src/core/domain/enum/user-state";
+import { AlreadyExistsException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
 import { v4 as uuidv4 } from "uuid";
 import { RegisterClientInput, RegisterClientRequestData } from "./register-client.request-data";
-import { ITemplateService } from "src/core/application/contracts/services/template.service";
-import { IMailerService, MailerPayload } from "src/core/application/contracts/services";
-import { NexlifyConfiguration } from "src/core/domain/entities/nexlify-configuration.entity";
 
 export class RegisterClientUseCase implements UseCase<RegisterClientInput, boolean> {
     constructor(
@@ -23,6 +24,9 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
 
     public run = async (args: UseCaseArgs<RegisterClientRequestData>): Promise<boolean> => {
         const { ...values } = args.data;
+
+        const client: boolean = await this._clientRepository.verifyIfExist(values.id_number);
+        if (client) throw new AlreadyExistsException('Ya hay un cliente registrado con el id_number ingresado')
 
         const newClient = await this._clientRepository.create({
             id_state: UserState.HABILITACION_PENDIENTE,

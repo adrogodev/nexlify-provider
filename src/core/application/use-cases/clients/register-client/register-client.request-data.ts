@@ -41,7 +41,6 @@ export class RegisterClientRequestData {
     @IsOptional()
     @IsString()
     user_second_surname?: string;
-
 }
 
 export type RegisterClientInput = RegisterClientRequestData;
