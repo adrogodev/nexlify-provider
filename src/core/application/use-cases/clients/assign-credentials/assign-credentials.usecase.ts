@@ -2,7 +2,7 @@ import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/
 import { IClientCredentialsRepository, IClientRepository } from "src/core/application/contracts/persistence";
 import { Client } from "src/core/domain/entities/client.entity";
 import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
-import { NotFoundException } from "src/core/domain/exceptions";
+import { ActionNotAllowedException, NotFoundException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
 import { normalizeToken } from "src/infrastructure/tools/normalize.tool";
@@ -32,17 +32,18 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
         const client: Nullable<Client> = await this._clientRepository.getByIdAsync(BigInt(id_user));
 
         if (client === null) throw new NotFoundException('Cliente para la asignación de credenciales de acceso no encontrado');
+        const client_credentials: Nullable<ClientCredentials> = await this._clientCredentialsRepository.findByClientId(client.id_client);
+
+        if (client_credentials!.checked_credential_assignment_token !== true) throw new ActionNotAllowedException('Verifica el token de asignacion de credenciales e intentalo nuevamente');
 
         //Se activa el cliente
         client.id_state = UserState.ACTIVO;
         await this._clientRepository.update(client.id_client, client);
 
-        const client_credentials: Nullable<ClientCredentials> = await this._clientCredentialsRepository.findByClientId(client.id_client);
 
         //Se registar las credenciales de acceso para el cliente
         client_credentials!.username = values.username;
         client_credentials!.password = this._hash.SHA256(values.password);
-        client_credentials!.assign_credentials = true
 
         await this._clientCredentialsRepository.update(client_credentials!.id_client_credential, client_credentials!);
 
