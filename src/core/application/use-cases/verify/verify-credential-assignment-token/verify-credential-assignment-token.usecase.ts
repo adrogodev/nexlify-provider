@@ -36,12 +36,11 @@ export class VerifyCredentialAssignmentTokenUseCase implements UseCase<{ token: 
 
         const client_credentials: Nullable<ClientCredentials> = await this._clientCredentialsRepository.findByClientId(BigInt(id_user)!);
 
-        if (client_credentials?.assign_credentials_token_jti === null && client_credentials.assign_credentials === false) throw new ActionNotAllowedException('Ya se ha intentado realizar la asignación de credenciales previamente, por favor contactar con el administador del sistema.')
+        if (client_credentials?.checked_credential_assignment_token === true) throw new ActionNotAllowedException('Este token de asignacion ya ha sido validado')
 
         if (client_credentials?.assign_credentials_token_jti !== jti) throw new NotMatchException('El jti del token no coicidiente con el cliente')
 
-
-        client_credentials.assign_credentials_token_jti = null;
+        client_credentials.checked_credential_assignment_token = true;
 
         await this._clientCredentialsRepository.update(client_credentials.id_client_credential, client_credentials);
 
