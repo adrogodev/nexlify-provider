@@ -20,17 +20,17 @@ model admin_user {
 }
 
 model client_credentials {
-  id_client_credential         BigInt    @id @default(autoincrement())
-  id_client                    BigInt?
-  username                     String?   @db.VarChar(255)
-  password                     String?
-  ip_connection                String?   @db.VarChar(255)
-  assign_credentials_token_jti String?   @db.VarChar(50)
-  auth_token                   String?
-  recovery_token               String?
-  created_at                   DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at                   DateTime? @default(now()) @db.Timestamptz(6)
-  assign_credentials           Boolean?  @default(false)
+  id_client_credential                BigInt    @id @default(autoincrement())
+  id_client                           BigInt?
+  username                            String?   @db.VarChar(255)
+  password                            String?
+  ip_connection                       String?   @db.VarChar(255)
+  assign_credentials_token_jti        String?   @db.VarChar(50)
+  auth_token                          String?
+  recovery_token                      String?
+  created_at                          DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                          DateTime? @default(now()) @db.Timestamptz(6)
+  checked_credential_assignment_token Boolean?  @default(false)
 }
 
 model clients {
