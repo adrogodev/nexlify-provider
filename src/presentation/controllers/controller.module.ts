@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR } from "src/core/application/contracts/infrastructure";
-import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
+import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
 import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase } from "src/core/application/use-cases/admin-user";
 import { AssignCredentialsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
@@ -77,8 +77,8 @@ import { VerifyController } from "./verify.controller";
         },
         {
             provide: AssignCredentialsUseCase,
-            useFactory: (cliRepo, credsRepo, jwtGen, encrypterGen, hasGen) => new AssignCredentialsUseCase(cliRepo, credsRepo, jwtGen, encrypterGen, hasGen),
-            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, HASH_GENERATOR]
+            useFactory: (cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, hasGen) => new AssignCredentialsUseCase(cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, hasGen),
+            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, HASH_GENERATOR]
         },
         {
             provide: SignInUseCase,
