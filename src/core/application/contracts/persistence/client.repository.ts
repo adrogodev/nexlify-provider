@@ -7,5 +7,5 @@ export interface IClientRepository extends IBaseRepository<Client, 'id_client'> 
 
     verifyIfExist(id_number: string): Promise<boolean>
 
-    getAllClientByFilters(page: number, size: number, id_state: number, id_type: number, id_number: string, name: string): Promise<{ count: number, data: Nullable<Client[]> }>
+    getAllClientByFilters(page: number, size: number, id_state: number, id_type: number, id_number: string, name: string): Promise<{ count: number, data: Client[] }>
 }

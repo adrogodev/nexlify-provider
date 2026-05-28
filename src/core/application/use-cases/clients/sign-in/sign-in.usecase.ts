@@ -1,11 +1,11 @@
 import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository } from "src/core/application/contracts/persistence";
 import { AuthDto } from "src/core/application/dtos";
-import { UserState } from "src/core/domain/enum/user-state";
 import { UnauthorizedException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
 import { SignInInput } from "./sign-in.request-data";
+import { ClientStateEnum } from "src/core/domain/enum";
 
 export class SignInUseCase implements UseCase<SignInInput, AuthDto> {
     constructor(
@@ -27,7 +27,7 @@ export class SignInUseCase implements UseCase<SignInInput, AuthDto> {
 
         const client = await this._clientRepositoty.getByIdAsync(BigInt(clientCreds.id_client!));
 
-        if (client?.id_state !== UserState.ACTIVO) throw new UnauthorizedException();
+        if (client?.id_client_state !== ClientStateEnum.ACTIVO) throw new UnauthorizedException();
 
         const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(client.id_client), admin: false });
 

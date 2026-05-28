@@ -7,7 +7,7 @@ import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
 import { normalizeToken } from "src/infrastructure/tools/normalize.tool";
 import { AssignCredentialsInput } from "./assign-credentials.request-data";
-import { UserState } from "src/core/domain/enum/user-state";
+import { ClientStateEnum } from "src/core/domain/enum";
 
 
 export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput, boolean> {
@@ -39,7 +39,7 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
         if (client_credentials!.checked_credential_assignment_token !== true) throw new ActionNotAllowedException('Verifica el token de asignacion de credenciales e intentalo nuevamente');
 
         //Se activa el cliente
-        client.id_state = UserState.ACTIVO;
+        client.id_client_state = ClientStateEnum.ACTIVO;
         await this._clientRepository.update(client.id_client, client);
 
 

@@ -35,7 +35,7 @@ model client_credentials {
 
 model clients {
   id_client           BigInt    @id @default(autoincrement())
-  id_state            Int?      @db.SmallInt
+  id_client_state     Int?      @db.SmallInt
   id_type             Int?      @db.SmallInt
   id_number           String?   @db.VarChar(50)
   name                String?   @db.VarChar(255)

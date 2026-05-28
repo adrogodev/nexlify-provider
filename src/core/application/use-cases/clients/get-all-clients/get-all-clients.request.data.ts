@@ -1,28 +1,33 @@
-import { IsNotEmpty, IsNumber, IsString } from "class-validator";
+import { Type } from "class-transformer";
+import { IsNumber, IsOptional, IsString } from "class-validator";
 
 export class GetAllClientRequestData {
+    @Type(() => Number)
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     page: number;
 
+    @Type(() => Number)
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     size: number;
 
+    @Type(() => Number)
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     id_state: number;
 
+    @Type(() => Number)
     @IsNumber()
-    @IsNotEmpty()
+    @IsOptional()
     id_type: number;
 
-    @IsNumber()
-    @IsNotEmpty()
+    @IsString()
+    @IsOptional()
     id_number: string;
 
     @IsString()
-    @IsNotEmpty()
+    @IsOptional()
     name: string;
 
 }

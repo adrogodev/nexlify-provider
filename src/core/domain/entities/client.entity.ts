@@ -1,7 +1,7 @@
 export class Client {
     constructor(
         public id_client: bigint,
-        public id_state: Nullable<number>,
+        public id_client_state: Nullable<number>,
         public id_type: Nullable<number>,
         public id_number: Nullable<string>,
         public name: Nullable<string>,

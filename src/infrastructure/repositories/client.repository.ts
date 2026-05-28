@@ -15,13 +15,12 @@ export class ClientRepository extends BaseRepository<Client, 'id_client'> implem
 
     }
 
-    public async getAllClientByFilters(page: number, size: number, id_state: number, id_type: number, id_number: string, name: string): Promise<{ count: number; data: Nullable<Client[]>; }> {
+    public async getAllClientByFilters(page: number, size: number, id_state: number, id_type: number, id_number: string, name: string): Promise<{ count: number; data: Client[]; }> {
         const where: Record<string, any> = {};
 
-        if (id_state) where.id_state = id_state;
+        if (id_state) where.id_client_state = id_state;
         if (id_type) where.id_type = id_type;
-        if (id_number) where.id_number = id_number;
-
+        if (id_number) where.id_number = { contains: id_number, mode: 'insensitive' };
         if (name) where.name = { contains: name, mode: 'insensitive' };
 
         const skip = (page - 1) * size;
