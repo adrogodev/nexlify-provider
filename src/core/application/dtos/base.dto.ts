@@ -3,3 +3,9 @@ export interface PaginateBaseDTO<T> {
     page: number,
     data: T
 }
+
+
+export interface MasterDataDTO {
+    id: number | bigint | string,
+    value: string
+}
