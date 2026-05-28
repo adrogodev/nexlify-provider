@@ -1,11 +1,11 @@
+import type { IAppConfig } from "src/core/application/contracts/infrastructure";
 import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository, INexlifyKeysLogsRepository, INexlifyKeysRepository } from "src/core/application/contracts/persistence";
 import { Client } from "src/core/domain/entities/client.entity";
 import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
 import { ActionNotAllowedException, NotFoundException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
-import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
-import { normalizeToken } from "src/infrastructure/tools/normalize.tool";
+import { normalizeToken } from "src/core/application/tools/normalize.tool";
 import { AssignCredentialsInput } from "./assign-credentials.request-data";
 import { ClientStateEnum } from "src/core/domain/enum";
 
@@ -19,6 +19,7 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
         private readonly _jwt: IJwtGenerator,
         private readonly _encryptor: IEncrypter,
         private readonly _hash: IHashGenerator,
+        private readonly _appConfig: IAppConfig,
     ) { }
 
     public run = async (args: UseCaseArgs<AssignCredentialsInput>): Promise<boolean> => {
@@ -26,8 +27,8 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
 
         const token = normalizeToken(values.assign_creds_token);
 
-        const decryptedToken = this._encryptor.decrypt(token, _env.ENCRYPT_KEY);
-        const assignCredetialsToken = this._jwt.getDataToken<TokenInfo>(decryptedToken, _env.JWT_SECRET_KEY);
+        const decryptedToken = this._encryptor.decrypt(token, this._appConfig.ENCRYPT_KEY);
+        const assignCredetialsToken = this._jwt.getDataToken<TokenInfo>(decryptedToken, this._appConfig.JWT_SECRET_KEY);
 
         const { id_user } = assignCredetialsToken.data!.payload;
 

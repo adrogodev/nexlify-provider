@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Query } from "@nestjs/common";
+import { Controller, Get, Headers, HttpCode, Query } from "@nestjs/common";
 import { VerifyCredentialAssignmentTokenUseCase } from "src/core/application/use-cases/verify";
 import { ClientResponse } from "src/core/domain/models";
 
@@ -14,11 +14,11 @@ export class VerifyController {
 
     @Get('credential-assignment')
     @HttpCode(200)
-    async verifyCredentialAssignmentToken(@Query('token') token: string): Promise<ClientResponse<void>> {
+    async verifyCredentialAssignmentToken(@Headers('x-assign-creds-token') assign_creds_token: string): Promise<ClientResponse<void>> {
         return new ClientResponse({
             ok: true,
             message: 'Token de asignacion de contraseña validado exitosamente',
-            data: await this._verifyCredentialAssignmentTokenUseCase.run({ data: { token } })
+            data: await this._verifyCredentialAssignmentTokenUseCase.run({ data: { token: assign_creds_token } })
         })
     }
 }

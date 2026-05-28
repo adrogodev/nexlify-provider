@@ -1,16 +1,17 @@
+import type { IAppConfig } from "src/core/application/contracts/infrastructure";
 import { IEncrypter, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository } from "src/core/application/contracts/persistence";
 import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
 import { ActionNotAllowedException, NotFoundException, NotMatchException, ValidationException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
-import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
-import { normalizeToken } from "src/infrastructure/tools/normalize.tool";
+import { normalizeToken } from "src/core/application/tools/normalize.tool";
 
 export class VerifyCredentialAssignmentTokenUseCase implements UseCase<{ token: unknown }, void> {
     constructor(
         private readonly _clientCredentialsRepository: IClientCredentialsRepository,
         private readonly _jwt: IJwtGenerator,
         private readonly _encryptor: IEncrypter,
+        private readonly _appConfig: IAppConfig,
     ) { }
 
     public run = async (args: UseCaseArgs<{ token: string; }>): Promise<void> => {
@@ -20,8 +21,8 @@ export class VerifyCredentialAssignmentTokenUseCase implements UseCase<{ token: 
         let assignCredetialsTokenInfo: TokenInfo | null | undefined;
 
         try {
-            const decryptedToken = this._encryptor.decrypt(normalizedToken, _env.ENCRYPT_KEY);
-            const assignCredetialsToken = this._jwt.getDataToken<TokenInfo>(decryptedToken, _env.JWT_SECRET_KEY);
+            const decryptedToken = this._encryptor.decrypt(normalizedToken, this._appConfig.ENCRYPT_KEY);
+            const assignCredetialsToken = this._jwt.getDataToken<TokenInfo>(decryptedToken, this._appConfig.JWT_SECRET_KEY);
             assignCredetialsTokenInfo = assignCredetialsToken.data?.payload;
 
             if (assignCredetialsToken.isNotValid || assignCredetialsToken.isExpired || !assignCredetialsTokenInfo?.jti) {

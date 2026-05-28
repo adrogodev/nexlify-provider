@@ -20,12 +20,6 @@ export const normalizeToken = (token: string): string => {
     }
 
     try {
-        /**
-         * Decodifica:
-         * %2B => +
-         * %2F => /
-         * etc.
-         */
         const decodedToken = decodeURIComponent(trimmedToken);
 
         return decodedToken.replace(/ /g, '+');

@@ -1,7 +1,7 @@
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
 import { AddNexlifyConfigurationInput, AddNexlifyConfigurationRequestData } from "./add-nexlify-configuration.request-data";
 import { INexlifyConfigurationRepository, ISmtpServerRepository } from "src/core/application/contracts/persistence";
-import { normalize } from "src/infrastructure/tools/normalize.tool";
+import { normalize } from "src/core/application/tools/normalize.tool";
 import { NexlifyConfiguration } from "src/core/domain/entities/nexlify-configuration.entity";
 import { AlreadyExistsException, NotFoundException } from "src/core/domain/exceptions";
 import { SmtpServers } from "src/core/domain/entities/smtp-server.entity";

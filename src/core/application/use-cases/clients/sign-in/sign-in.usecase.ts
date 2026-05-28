@@ -1,9 +1,9 @@
+import type { IAppConfig } from "src/core/application/contracts/infrastructure";
 import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository } from "src/core/application/contracts/persistence";
 import { AuthDto } from "src/core/application/dtos";
 import { UnauthorizedException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
-import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
 import { SignInInput } from "./sign-in.request-data";
 import { ClientStateEnum } from "src/core/domain/enum";
 
@@ -13,7 +13,8 @@ export class SignInUseCase implements UseCase<SignInInput, AuthDto> {
         private readonly _clientRepositoty: IClientRepository,
         private readonly _hashGenerator: IHashGenerator,
         private readonly _jwt: IJwtGenerator,
-        private readonly _encrypter: IEncrypter
+        private readonly _encrypter: IEncrypter,
+        private readonly _appConfig: IAppConfig,
     ) { }
 
     public run = async (args: UseCaseArgs<SignInInput>): Promise<AuthDto> => {
@@ -29,11 +30,11 @@ export class SignInUseCase implements UseCase<SignInInput, AuthDto> {
 
         if (client?.id_client_state !== ClientStateEnum.ACTIVO) throw new UnauthorizedException();
 
-        const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(client.id_client), admin: false });
+        const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(client.id_client), is_admin: false });
 
-        const authToken = this._jwt.createTokenWithExpiration({ data: tokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}h` });
+        const authToken = this._jwt.createTokenWithExpiration({ data: tokenInfo, key: this._appConfig.JWT_SECRET_KEY, expiresIn: `${this._appConfig.JWT_EXPIRATION_TIME}h` });
 
-        const tokenChiper = this._encrypter.encrypt(authToken, _env.ENCRYPT_KEY);
+        const tokenChiper = this._encrypter.encrypt(authToken, this._appConfig.ENCRYPT_KEY);
 
         clientCreds.ip_connection = ip_connection;
         clientCreds.auth_token = tokenChiper;

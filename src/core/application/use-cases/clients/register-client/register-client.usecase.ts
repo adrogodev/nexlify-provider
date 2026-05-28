@@ -1,3 +1,4 @@
+import type { IAppConfig } from "src/core/application/contracts/infrastructure";
 import { IEncrypter, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository, INexlifyConfigurationRepository, ISmtpServerRepository } from "src/core/application/contracts/persistence";
 import { IMailerService, MailerPayload } from "src/core/application/contracts/services";
@@ -5,7 +6,6 @@ import { ITemplateService } from "src/core/application/contracts/services/templa
 import { NexlifyConfiguration } from "src/core/domain/entities/nexlify-configuration.entity";
 import { AlreadyExistsException } from "src/core/domain/exceptions";
 import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
-import { AppEnvs as _env } from "src/infrastructure/environments/app-env.config";
 import { v4 as uuidv4 } from "uuid";
 import { RegisterClientInput, RegisterClientRequestData } from "./register-client.request-data";
 import { ClientStateEnum } from "src/core/domain/enum";
@@ -19,7 +19,8 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
         private readonly _nexlifyConfigurationRepository: INexlifyConfigurationRepository,
         private readonly _smtpServerRepository: ISmtpServerRepository,
         private readonly _templateServices: ITemplateService,
-        private readonly _mailerService: IMailerService
+        private readonly _mailerService: IMailerService,
+        private readonly _appConfig: IAppConfig,
     ) { }
 
     public run = async (args: UseCaseArgs<RegisterClientRequestData>): Promise<boolean> => {
@@ -44,10 +45,10 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
 
         //Se genera el token y correo para asignacion de credenciales
         const jti_key = uuidv4();
-        const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client), admin: null });
-        const assignCredetialsToken = this._jwt.createTokenWithoutExpiration({ data: assignCredetialsTokenInfo, key: _env.JWT_SECRET_KEY });
-        const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, _env.ENCRYPT_KEY);
-        const assign_path: string = `${_env.PLATFORM_URL}?token=${encodeURIComponent(tokenChiper)}`;
+        const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client), is_admin: null });
+        const assignCredetialsToken = this._jwt.createTokenWithoutExpiration({ data: assignCredetialsTokenInfo, key: this._appConfig.JWT_SECRET_KEY });
+        const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, this._appConfig.ENCRYPT_KEY);
+        const assign_path: string = `${this._appConfig.PLATFORM_URL}?token=${encodeURIComponent(tokenChiper)}`;
 
 
         //Construir y enviar correo electronico

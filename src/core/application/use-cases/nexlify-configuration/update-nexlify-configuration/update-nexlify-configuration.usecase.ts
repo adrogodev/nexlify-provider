@@ -3,7 +3,7 @@ import type { EntityUpdateInput } from "src/core/application/contracts/persisten
 import { NexlifyConfiguration } from "src/core/domain/entities/nexlify-configuration.entity";
 import { NotFoundException } from "src/core/domain/exceptions";
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
-import { normalize } from "src/infrastructure/tools/normalize.tool";
+import { normalize } from "src/core/application/tools/normalize.tool";
 import { UpdateNexlifyConfigurationInput, UpdateNexlifyConfigurationRequestData } from "./update-nexlify-configuration.request-data";
 
 export class UpdateNexlifyConfigurationUseCase implements UseCase<UpdateNexlifyConfigurationInput, boolean> {

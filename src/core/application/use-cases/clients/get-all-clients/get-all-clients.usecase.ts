@@ -1,13 +1,14 @@
 import { AllClientsInfoDTO, PaginateBaseDTO } from "src/core/application/dtos";
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
 import { GetAllClientRequestData } from "./get-all-clients.request.data";
-import { IClientRepository } from "src/core/application/contracts/persistence";
+import { IClientRepository, IIdTypeRepository } from "src/core/application/contracts/persistence";
 import { ClientMapper } from "src/core/application/mappers/client.mapper";
 
 export class GetAllClientsUseCase implements UseCase<GetAllClientRequestData, PaginateBaseDTO<AllClientsInfoDTO[]>> {
 
     constructor(
-        private readonly _clientRepository: IClientRepository
+        private readonly _clientRepository: IClientRepository,
+        private readonly _idTypesRespository: IIdTypeRepository
     ) { }
 
     public run = async (args: UseCaseArgs<GetAllClientRequestData>): Promise<PaginateBaseDTO<AllClientsInfoDTO[]>> => {
@@ -20,6 +21,8 @@ export class GetAllClientsUseCase implements UseCase<GetAllClientRequestData, Pa
             page, size, values.id_state, values.id_type, values.id_number, values.name
         );
 
-        return ClientMapper.mapAllClients(clients.count, page, clients.data);
+        const id_types = await this._idTypesRespository.getAllAsync();
+
+        return ClientMapper.mapAllClients(clients.count, page, clients.data, id_types);
     };
 }

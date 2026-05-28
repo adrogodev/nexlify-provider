@@ -1,10 +1,9 @@
-import type { IEncrypter, IHashGenerator, IJwtGenerator } from 'src/core/application/contracts/infrastructure';
+import type { IAppConfig, IEncrypter, IHashGenerator, IJwtGenerator } from 'src/core/application/contracts/infrastructure';
 import type { IAdminUserRepository } from 'src/core/application/contracts/persistence';
 import { AuthDto } from 'src/core/application/dtos';
 import { UnauthorizedException } from 'src/core/domain/exceptions';
 import { TokenInfo } from 'src/core/domain/models';
 import type { UseCase, UseCaseArgs } from 'src/core/domain/models/use-case.model';
-import { AppEnvs as _env } from 'src/infrastructure/environments/app-env.config';
 import type { AuthAdminUserInput } from './auth-admin-user.request-data';
 
 export class AuthAdminUserUseCase implements UseCase<AuthAdminUserInput, AuthDto> {
@@ -12,7 +11,8 @@ export class AuthAdminUserUseCase implements UseCase<AuthAdminUserInput, AuthDto
         private readonly _adminUserRepository: IAdminUserRepository,
         private readonly _hashGenerator: IHashGenerator,
         private readonly _jwt: IJwtGenerator,
-        private readonly _encrypter: IEncrypter
+        private readonly _encrypter: IEncrypter,
+        private readonly _appConfig: IAppConfig,
     ) { }
 
     public run = async (args: UseCaseArgs<AuthAdminUserInput>): Promise<AuthDto> => {
@@ -26,11 +26,11 @@ export class AuthAdminUserUseCase implements UseCase<AuthAdminUserInput, AuthDto
 
         if (!user.is_active) throw new UnauthorizedException();
 
-        const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(user.id_user), admin: true });
+        const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(user.id_user), is_admin: true });
 
-        const authToken = this._jwt.createTokenWithExpiration({ data: tokenInfo, key: _env.JWT_SECRET_KEY, expiresIn: `${_env.JWT_EXPIRATION_TIME}h` });
+        const authToken = this._jwt.createTokenWithExpiration({ data: tokenInfo, key: this._appConfig.JWT_SECRET_KEY, expiresIn: `${this._appConfig.JWT_EXPIRATION_TIME}h` });
 
-        const tokenChiper = this._encrypter.encrypt(authToken, _env.ENCRYPT_KEY);
+        const tokenChiper = this._encrypter.encrypt(authToken, this._appConfig.ENCRYPT_KEY);
 
         user.ip_connection = ip_connection;
         user.auth_token = tokenChiper;

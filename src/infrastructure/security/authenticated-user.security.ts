@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { IJwtGenerator, JWTPayload } from 'src/core/application/contracts/infrastructure';
 import { JWT_GENERATOR } from 'src/core/application/contracts/infrastructure';
-import type { IAdminUserRepository } from 'src/core/application/contracts/persistence';
-import { ADMIN_USER_REPOSITORY } from 'src/core/application/contracts/persistence';
+import type { IAdminUserRepository, IClientRepository } from 'src/core/application/contracts/persistence';
+import { ADMIN_USER_REPOSITORY, CLIENT_REPOSITORY } from 'src/core/application/contracts/persistence';
+import { ClientStateEnum } from 'src/core/domain/enum';
 import { UnauthenticatedException, UnauthorizedException } from 'src/core/domain/exceptions';
 import { TokenInfo } from 'src/core/domain/models';
 import { AppEnvs as _env } from 'src/infrastructure/environments/app-env.config';
@@ -12,6 +13,7 @@ export class AuthenticatedUserSecurity {
     constructor(
         @Inject(JWT_GENERATOR) private readonly _jwt: IJwtGenerator,
         @Inject(ADMIN_USER_REPOSITORY) private readonly _adminUserRepository: IAdminUserRepository,
+        @Inject(CLIENT_REPOSITORY) private readonly _clientRepository: IClientRepository,
     ) { }
 
     async run(authHeader: Nullable<string>, ip_connection?: string): Promise<{ auth_data: TokenInfo }> {
@@ -28,6 +30,19 @@ export class AuthenticatedUserSecurity {
         if (tokenDecode.isNotValid) throw new UnauthorizedException('Token inválido');
 
         const content = TokenInfo.create((tokenDecode.data as JWTPayload<TokenInfo>).payload);
+
+        const client = await this._clientRepository.getByIdAsync(BigInt(content.id_user));
+        if (client) {
+            if (client.id_client_state !== ClientStateEnum.ACTIVO) {
+                throw new UnauthorizedException('Cliente inactivo');
+            }
+
+            if (ip_connection !== content.ip_connection) {
+                throw new UnauthorizedException();
+            }
+
+            return { auth_data: content };
+        }
 
         const user = await this._adminUserRepository.getByIdAsync(BigInt(content.id_user));
         if (!user) throw new UnauthorizedException('No autenticado');

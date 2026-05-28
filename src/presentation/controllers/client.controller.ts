@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Headers, HttpCode, Ip, Post, Query, UseGuards } from "@nestjs/common";
-import { AllClientsInfoDTO, AuthDto, PaginateBaseDTO } from "src/core/application/dtos";
-import { AssignCredentialsRequestData, AssignCredentialsUseCase, GetAllClientRequestData, GetAllClientsUseCase, SignInRequestData, SignInUseCase } from "src/core/application/use-cases/clients";
+import { Body, Controller, Get, Headers, HttpCode, Ip, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import { AllClientsInfoDTO, AuthDto, ClientDataDTO, PaginateBaseDTO } from "src/core/application/dtos";
+import { AssignCredentialsRequestData, AssignCredentialsUseCase, ClientDataUseCase, GetAllClientRequestData, GetAllClientsUseCase, SignInRequestData, SignInUseCase } from "src/core/application/use-cases/clients";
 import { RegisterClientRequestData, RegisterClientUseCase } from "src/core/application/use-cases/clients/register-client";
 import { ClientResponse } from "src/core/domain/models";
 import { AuthGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
+import { ContextInterceptor } from "src/infrastructure/interceptors/context.interceptor";
 
 @Controller('api/client')
 export class ClientContoller {
@@ -11,7 +12,8 @@ export class ClientContoller {
         private readonly _registerClientUseCase: RegisterClientUseCase,
         private readonly _assignCredentialsUseCase: AssignCredentialsUseCase,
         private readonly _signInUseCase: SignInUseCase,
-        private readonly _getAllClientUseCase: GetAllClientsUseCase
+        private readonly _getAllClientUseCase: GetAllClientsUseCase,
+        private readonly _clientDataUseCase: ClientDataUseCase
     ) { }
 
     @Post('register')
@@ -28,7 +30,7 @@ export class ClientContoller {
 
     @Post('assign-credentials')
     @HttpCode(200)
-    async assignCredetials(@Headers('x-assign-token') assign_creds_token: string, @Body() body: AssignCredentialsRequestData): Promise<ClientResponse<boolean>> {
+    async assignCredetials(@Headers('x-assign-creds-token') assign_creds_token: string, @Body() body: AssignCredentialsRequestData): Promise<ClientResponse<boolean>> {
         return new ClientResponse({
             ok: true,
             message: 'Credenciales asignadas exitosamente',
@@ -57,5 +59,17 @@ export class ClientContoller {
             message: 'Informacion de clientes obtenida exitosamente',
             data: await this._getAllClientUseCase.run({ data: { ...query } })
         })
+    }
+
+    @UseInterceptors(ContextInterceptor)
+    @UseGuards(AuthGuard)
+    @Get('data')
+    @HttpCode(200)
+    async clientData(): Promise<ClientResponse<ClientDataDTO>> {
+        return new ClientResponse({
+            ok: true,
+            message: 'Datos de sesion obtenidos existosamente',
+            data: await this._clientDataUseCase.run({ data: null })
+        });
     }
 }
