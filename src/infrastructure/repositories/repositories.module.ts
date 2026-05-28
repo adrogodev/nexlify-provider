@@ -1,10 +1,11 @@
+import { IdTypeRepository } from './id-type.repository';
 import { AdminUserRepository } from './admin-user.repository';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ClientRepository } from './client.repository';
 import { NexlifyConfigurationRepository } from './nexlify-configuration.repository';
 import { SmtpServerRepository } from './smtp-server.repository';
-import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from 'src/core/application/contracts/persistence';
+import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from 'src/core/application/contracts/persistence';
 import { ClientCredentialsRepository } from './client_credentials.repository';
 import { NexlifyKeysRepository } from './nexlify-keys.repository';
 import { NexlifyKeysLogsRepository } from './nexlify-keys-logs.repository';
@@ -40,6 +41,10 @@ import { NexlifyKeysLogsRepository } from './nexlify-keys-logs.repository';
             provide: NEXLIFY_KEYS_LOGS_REPOSITORY,
             useClass: NexlifyKeysLogsRepository
         },
+        {
+            provide: ID_TYPE_REPOSITORY,
+            useClass: IdTypeRepository
+        },
     ],
     exports: [
         ADMIN_USER_REPOSITORY,
@@ -48,7 +53,8 @@ import { NexlifyKeysLogsRepository } from './nexlify-keys-logs.repository';
         NEXLIFY_CONFIGURATION_REPOSITORY,
         CLIENT_CREDENTIALS_REPOSITORY,
         NEXLIFY_KEYS_REPOSITORY,
-        NEXLIFY_KEYS_LOGS_REPOSITORY
+        NEXLIFY_KEYS_LOGS_REPOSITORY,
+        ID_TYPE_REPOSITORY
     ],
 })
 
