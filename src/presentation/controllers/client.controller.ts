@@ -1,6 +1,6 @@
-import { Body, Controller, Headers, HttpCode, Ip, Post, UseGuards } from "@nestjs/common";
-import { AuthDto } from "src/core/application/dtos";
-import { AssignCredentialsRequestData, AssignCredentialsUseCase, SignInRequestData, SignInUseCase } from "src/core/application/use-cases/clients";
+import { Body, Controller, Get, Headers, HttpCode, Ip, Post, Query, UseGuards } from "@nestjs/common";
+import { AllClientsInfoDTO, AuthDto, PaginateBaseDTO } from "src/core/application/dtos";
+import { AssignCredentialsRequestData, AssignCredentialsUseCase, GetAllClientRequestData, GetAllClientsUseCase, SignInRequestData, SignInUseCase } from "src/core/application/use-cases/clients";
 import { RegisterClientRequestData, RegisterClientUseCase } from "src/core/application/use-cases/clients/register-client";
 import { ClientResponse } from "src/core/domain/models";
 import { AuthGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
@@ -10,7 +10,8 @@ export class ClientContoller {
     constructor(
         private readonly _registerClientUseCase: RegisterClientUseCase,
         private readonly _assignCredentialsUseCase: AssignCredentialsUseCase,
-        private readonly _signInUseCase: SignInUseCase
+        private readonly _signInUseCase: SignInUseCase,
+        private readonly _getAllClientUseCase: GetAllClientsUseCase
     ) { }
 
     @Post('register')
@@ -44,6 +45,17 @@ export class ClientContoller {
             ok: true,
             message: 'Inicio de sesion exitoso',
             data: await this._signInUseCase.run({ data: { ...body, ip_connection } })
+        })
+    }
+
+    @Get('get-clients')
+    @HttpCode(200)
+    @UseGuards(AuthGuard)
+    async getClients(@Query() query: GetAllClientRequestData): Promise<ClientResponse<PaginateBaseDTO<AllClientsInfoDTO[]>>> {
+        return new ClientResponse({
+            ok: true,
+            message: 'Informacion de clientes obtenida exitosamente',
+            data: await this._getAllClientUseCase.run({ data: { ...query } })
         })
     }
 }

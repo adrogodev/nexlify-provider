@@ -3,7 +3,7 @@ import { ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR } from "src/core/application/c
 import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
 import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase } from "src/core/application/use-cases/admin-user";
-import { AssignCredentialsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
+import { AssignCredentialsUseCase, GetAllClientsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
 import { AddNexlifyConfigurationUseCase, GetNexlifyConfigurationUseCase, UpdateNexlifyConfigurationUseCase } from "src/core/application/use-cases/nexlify-configuration";
 import { AddSmtpServerUseCase } from "src/core/application/use-cases/smtp-server";
@@ -84,6 +84,11 @@ import { VerifyController } from "./verify.controller";
             provide: SignInUseCase,
             useFactory: (credsRepo, cliRepo, hashGen, jwtGen, encrypterGen) => new SignInUseCase(credsRepo, cliRepo, hashGen, jwtGen, encrypterGen),
             inject: [CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, HASH_GENERATOR, JWT_GENERATOR, ENCRYPTER]
+        },
+        {
+            provide: GetAllClientsUseCase,
+            useFactory: (repo) => new GetAllClientsUseCase(repo),
+            inject: [CLIENT_REPOSITORY]
         }
     ]
 })
