@@ -29,11 +29,13 @@ Test runner: `pnpm test` (colocated specs) + `pnpm test:e2e`. DB still down at `
 | T1 | S1 | inline | 10b3e75 feat(platform): uuid v4 generado por base de datos con gen_random_uuid |
 | T2 | S2 | inline | pending |
 | T3 | S3 | inline | pending |
-| T4 | S4 | delegated | pending |
-| T5 | S5 | delegated | pending |
+| T4 | S4 | delegated | d031ed4 feat(platform): CRUD de usuarios por cliente con listado paginado y control de permisos |
+| T5 | S5 | delegated | 848b8d8 feat(platform): ciclo de vida del cliente y flujo de recuperacion de contrasena |
 | T6 | S6 | delegated | pending |
 | T7 | S7 | inline | pending |
 
 ## Log
 
 - L1 (2026-10-26) — Original request verbatim: "sigue con las siguiente piezas de la propuesta y la generacion del uuid v4 hazla automaticamente por base de datos y solo si es necesario en el codigo, trata de no generarlo directamente desde el codigo" — instruction applies to every uuid-typed field (emails.email_uuid done via DB default; templates.id_template likewise; no code-side uuid v4 anywhere).
+- L2 (2026-10-26) — T4 delegated done: users CRUD (`create-user`, `get-users`, `update-user`) on the existing `users` table with `USERS_REPOSITORY` (`getAllWithFilters`/`countWithFilters` following `emails.repository`), `User` entity, `UserInfoDTO`, `UserMapper` and controller `api/users` (`POST`, paginated `GET`, `PUT :id`), all `AuthGuard` + `ContextInterceptor`; id_client edit from body is admin-only on create and never part of the update patch; new entity file `src/core/domain/entities/user.entity.ts` was outside the planned edit surface and approved by the user before writing.
+- L3 (2026-10-26) — T5 delegated done: `PUT api/client/update`, `PUT api/client/state` (admin only, `ClientStateEnum`) and public `POST api/client/forgot-password` (recovery JWT HS512 30m with code-level `jti` uuid — plain string column, no DB default — encrypted and stored in `client_credentials.recovery_token`, reset-link email built from `nexlify_configuration` SMTP creds, always generic response, unknown username resolves without side effects) plus `POST api/client/reset-password` (decrypt → `getDataToken` verify → exact match against stored `recovery_token` single use → bcrypt hash → token cleared); credentials identity reused `findByClientId`, so no new method on the credentials contract was needed.
