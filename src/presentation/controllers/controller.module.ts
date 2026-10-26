@@ -6,6 +6,11 @@ import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-
 import { AssignCredentialsUseCase, ClientDataUseCase, GetAllClientsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
 import { EmailAttemptService } from "src/core/application/use-cases/email/services/email-attempt.service";
+import { GetEmailDetailUseCase } from "src/core/application/use-cases/email/get-email-detail/get-email-detail.usecase";
+import { GetEmailsUseCase } from "src/core/application/use-cases/email/get-emails/get-emails.usecase";
+import { RetryDueEmailsUseCase } from "src/core/application/use-cases/email/retry-due/retry-due-emails.usecase";
+import { RetryEmailUseCase } from "src/core/application/use-cases/email/retry-email/retry-email.usecase";
+import { EmailRetryScheduler } from "src/infrastructure/services/email-retry.scheduler.service";
 import { AddNexlifyConfigurationUseCase, GetNexlifyConfigurationUseCase, UpdateNexlifyConfigurationUseCase } from "src/core/application/use-cases/nexlify-configuration";
 import { AddSmtpServerUseCase } from "src/core/application/use-cases/smtp-server";
 import { HelpersModule } from "src/infrastructure/helpers/helpers.module";
@@ -69,6 +74,31 @@ import { MasterController } from "./master.controller";
             provide: SendEmailUseCase,
             useFactory: (configRepo, emailsRepo, attemptService, idGen) => new SendEmailUseCase(configRepo, emailsRepo, attemptService, idGen),
             inject: [NEXLIFY_CONFIGURATION_REPOSITORY, EMAILS_REPOSITORY, EmailAttemptService, ID_GENERATOR]
+        },
+        {
+            provide: GetEmailDetailUseCase,
+            useFactory: (emailsRepo, logsRepo) => new GetEmailDetailUseCase(emailsRepo, logsRepo),
+            inject: [EMAILS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY]
+        },
+        {
+            provide: GetEmailsUseCase,
+            useFactory: (emailsRepo) => new GetEmailsUseCase(emailsRepo),
+            inject: [EMAILS_REPOSITORY]
+        },
+        {
+            provide: RetryEmailUseCase,
+            useFactory: (emailsRepo, attemptService) => new RetryEmailUseCase(emailsRepo, attemptService),
+            inject: [EMAILS_REPOSITORY, EmailAttemptService]
+        },
+        {
+            provide: RetryDueEmailsUseCase,
+            useFactory: (emailsRepo, attemptService) => new RetryDueEmailsUseCase(emailsRepo, attemptService),
+            inject: [EMAILS_REPOSITORY, EmailAttemptService]
+        },
+        {
+            provide: EmailRetryScheduler,
+            useFactory: (retryDue) => new EmailRetryScheduler(retryDue),
+            inject: [RetryDueEmailsUseCase]
         },
         {
             provide: AddNexlifyConfigurationUseCase,

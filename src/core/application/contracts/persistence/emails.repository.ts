@@ -19,4 +19,5 @@ export interface IEmailsRepository extends IBaseRepository<Email, 'id_email'> {
     findRetryable(nextRetryBefore: Date): Promise<Email[]>;
     countSentOn(from: Date, to: Date): Promise<number>;
     getAllWithFilters(filters: GetEmailsFilters): Promise<Email[]>;
+    countWithFilters(filters: GetEmailsFilters): Promise<number>;
 }

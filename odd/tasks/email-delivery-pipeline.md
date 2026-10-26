@@ -23,10 +23,10 @@ Test runner: `pnpm test` (Jest, colocated specs) + `pnpm test:e2e` (module boot 
 
 | ID | Spec | Route | Commit |
 |----|------|-------|--------|
-| T1 | S1, S8 | inline | pending |
-| T2 | S2 | inline | pending |
-| T3 | S3 (ids) | inline | pending |
-| T4 | S3 | inline | pending |
+| T1 | S1, S8 | inline | 6747561 feat(email): agrega modelos emails y email_send_logs con enums de estado y nivel de log |
+| T2 | S2 | inline | cde8f56 + 71e3dce feat(email): entidades, contratos, repositorios, DTOs y mapper |
+| T3 | S3 (ids) | inline | 157de71 feat(email): generador de ids con uuid v4 y short code base62 |
+| T4 | S3 | inline | 467e1f2 feat(email): pipeline de envio con persistencia, auditoria por intento, limite diario y maquina de estados |
 | T5 | S5 | inline | pending |
 | T6 | S4 | inline | pending |
 | T7 | S6 | inline | pending |

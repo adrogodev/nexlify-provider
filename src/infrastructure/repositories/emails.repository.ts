@@ -5,8 +5,6 @@ import { EmailStateEnum } from "src/core/domain/enum";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaseRepository } from "./base.repository";
 
-const SHORT_CODE_MAX = 20;
-
 @Injectable()
 export class EmailsRepository extends BaseRepository<Email, 'id_email'> implements IEmailsRepository {
     constructor(prisma: PrismaService) {
@@ -44,24 +42,29 @@ export class EmailsRepository extends BaseRepository<Email, 'id_email'> implemen
     }
 
     public async getAllWithFilters(filters: GetEmailsFilters): Promise<Email[]> {
-        const page = Math.max(1, filters.page ?? 1);
-        const limit = Math.min(100, Math.max(1, filters.limit ?? 20));
-
         return await this._model.findMany({
-            where: {
-                state: filters.state,
-                id_client: filters.id_client,
-                short_code: filters.short_code,
-                created_at: (filters.from_date || filters.to_date)
-                    ? {
-                        gte: filters.from_date,
-                        lte: filters.to_date,
-                    }
-                    : undefined,
-            },
+            where: this.#buildFilters(filters),
             orderBy: { id_email: 'desc' },
-            skip: (page - 1) * limit,
-            take: limit,
+            skip: ((Math.max(1, filters.page ?? 1)) - 1) * Math.min(100, Math.max(1, filters.limit ?? 20)),
+            take: Math.min(100, Math.max(1, filters.limit ?? 20)),
         });
+    }
+
+    public async countWithFilters(filters: GetEmailsFilters): Promise<number> {
+        return await this._model.count({ where: this.#buildFilters(filters) });
+    }
+
+    #buildFilters(filters: GetEmailsFilters): Record<string, unknown> {
+        return {
+            state: filters.state,
+            id_client: filters.id_client,
+            short_code: filters.short_code,
+            created_at: (filters.from_date || filters.to_date)
+                ? {
+                    gte: filters.from_date,
+                    lte: filters.to_date,
+                }
+                : undefined,
+        };
     }
 }
