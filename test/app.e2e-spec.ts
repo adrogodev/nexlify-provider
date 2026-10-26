@@ -22,6 +22,9 @@ describe('API (e2e)', () => {
                 $on: jest.fn(),
                 $extends: jest.fn(),
                 admin_user: {},
+                emails: { findMany: jest.fn(async () => []) },
+                email_send_logs: {},
+                id_types: { findMany: jest.fn(async () => []) },
             })
             .compile();
 
@@ -47,6 +50,18 @@ describe('API (e2e)', () => {
         return request(app.getHttpServer())
             .post('/api/email/send')
             .send({ from: 'a@b.com', to: 'c@d.com', subject: 's', text: 't' })
+            .expect(403);
+    });
+
+    it('GET /api/email rejects unauthenticated requests (AuthGuard)', () => {
+        return request(app.getHttpServer())
+            .get('/api/email')
+            .expect(403);
+    });
+
+    it('POST /api/email/:emailId/retry rejects unauthenticated requests (AuthGuard)', () => {
+        return request(app.getHttpServer())
+            .post('/api/email/NX-AAAAAA1/retry')
             .expect(403);
     });
 

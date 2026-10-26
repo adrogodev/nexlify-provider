@@ -27,12 +27,23 @@ Test runner: `pnpm test` (Jest, colocated specs) + `pnpm test:e2e` (module boot 
 | T2 | S2 | inline | cde8f56 + 71e3dce feat(email): entidades, contratos, repositorios, DTOs y mapper |
 | T3 | S3 (ids) | inline | 157de71 feat(email): generador de ids con uuid v4 y short code base62 |
 | T4 | S3 | inline | 467e1f2 feat(email): pipeline de envio con persistencia, auditoria por intento, limite diario y maquina de estados |
-| T5 | S5 | inline | pending |
-| T6 | S4 | inline | pending |
-| T7 | S6 | inline | pending |
-| T8 | S7 | inline | pending |
+| T5 | S5 | inline | f181b07 feat(email): endpoints de listado, detalle y reintento (incluye S4 y S6 del mismo commit) |
+| T6 | S4 | inline | f181b07 feat(email): endpoints de listado, detalle y reintento por uuid/short code mas scheduler automatico |
+| T7 | S6 | inline | f181b07 (EmailRetryScheduler + RetryDueEmailsUseCase; specs en email-retry.scheduler.spec.ts) |
+| T8 | S7 | inline | pending-final (README + e2e en el commit de cierre) |
 
 ## Log
 
 - L1 (2026-10-26) — Original request verbatim: "considero que aun faltan algunos endpoints para que el sistema se mas amplio, pordrias decirme basado en el analisis que otra funcionalidades faltan para que el sistema sea mas completo y tenga un valor diferencial o un plus que otros no tengan, ademas quiero logs o auditoria de si fue enviado con  exito, hubo algun warning, un fail y tambien logica de reintento del mismo correo que se envio solo a un click o ejecutando un solo enpoint pasando un id del correo, sabes maneja id tipo long, short, uuid v4 segun sea el caso" — user then chose "Pipeline completo" (persistence + logs + retry endpoint + automatic scheduler) as the first implementation.
 - L2 (2026-10-26) — DB `localhost:5505` unreachable at start: migration deferred (S8), code + client generation proceed offline.
+- L3 (2026-10-26) — Verification evidence: `pnpm test` → 44 passed (0 failed); `pnpm test:e2e` → 5 passed (0 failed); `pnpm build` clean. IMailerService contract enriched to `MailerResult { ok, message }` so attempt logs carry the real failure message (register-client use case unchanged, ignores result). Scheduler interval fixed at 30s. Daily limit counts SENT+WARNING of the day; it is enforced on first send only (manual retry one-click bypasses it by design decision).
+- Risk lines:
+  - S1: Risk: item 1 (schema change; additive new tables, no existing data touched; migration pending until user's DB is up).
+  - S2: Risk: none (additive contracts/repositories).
+  - S3: Risk: item 3 (IMailerService contract changed from boolean to MailerResult; internal consumers adapted).
+  - S4: Risk: item 3 (new public endpoint path and id semantics).
+  - S5: Risk: item 3 (new public endpoints).
+  - S6: Risk: item 4 (background process touching data; bounded by idempotent, fail-closed tick).
+  - S7: Risk: none (docs/tests).
+  - S8: Risk: none (generation verified offline: `prisma validate` + `prisma generate` OK).
+

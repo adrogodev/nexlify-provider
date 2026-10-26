@@ -34,11 +34,23 @@ Required (see `.env.example`):
 
 > `JWT_SECRET_KEY` and `ENCRYPT_KEY` are required: requests with an empty value fail fast instead of falling back to default secrets.
 
-## Data model (11 tables)
+## Data model (13 tables)
 
-`admin_user` (platform admins) · `clients` (companies/persons) · `client_credentials` (login, encrypted `auth_token`/`recovery_token`) · `nexlify_keys` (SHA-256 hashed client API keys) · `nexlify_keys_logs` (API key audit) · `smtp_servers` (SMTP provider catalog) · `diffusion_information` (per-client mail credentials) · `templates` · `users` (end-users of a client) · `nexlify_configuration` (singleton: sender identity, SMTP credentials, send limits, email header/footer) · `id_types` (identification document catalog).
+`admin_user` (platform admins) · `clients` (companies/persons) · `client_credentials` (login, encrypted `auth_token`/`recovery_token`) · `nexlify_keys` (SHA-256 hashed client API keys) · `nexlify_keys_logs` (API key audit) · `smtp_servers` (SMTP provider catalog) · `diffusion_information` (per-client mail credentials) · `templates` · `users` (end-users of a client) · `nexlify_configuration` (singleton: sender identity, SMTP credentials, send limits, email header/footer) · `id_types` (identification document catalog) · `emails` (persistent delivery records) · `email_send_logs` (per-attempt audit).
 
 Password hashing: bcrypt (cost 12). Legacy unsalted SHA-256 hashes are still accepted for backwards compatibility and are upgraded to bcrypt automatically on the next successful login.
+
+### Email delivery pipeline
+
+Every send is a persistent record with three identifiers:
+
+- `id_email` (BigInt) — internal PK, never exposed.
+- `email_uuid` (UUID v4) — public API identifier.
+- `short_code` (`NX-XXXXXXX`, base62) — human reference for UI/log search.
+
+States: `QUEUED → SENDING → SENT | WARNING | RETRYING → FAILED`. Every attempt writes an `email_send_logs` row with level `SUCCESS` (first-attempt success), `WARNING` (success after retries) or `ERROR` (failure), the SMTP host used and the message. `nexlify_configuration.daily_send_limit` caps sends per day; `max_retries` and `retry_interval_seconds` drive the retry machine. A scheduler (`EmailRetryScheduler`, every 30s) re-sends due `RETRYING` emails; a failed batch never stops the rest.
+
+To create the new tables run `pnpm prisma migrate dev --name email_pipeline` (or `pnpm prisma db push`) with the database up.
 
 ## Endpoints
 
@@ -52,7 +64,10 @@ Password hashing: bcrypt (cost 12). Legacy unsalted SHA-256 hashes are still acc
 | POST | `api/client/sign-in` | — | Client login; session JWT stored encrypted, revoked IP binding enforced |
 | GET | `api/client/get-clients` | AuthGuard | Paginated client listing with filters |
 | GET | `api/client/data` | AuthGuard | Current client session data |
-| POST | `api/email/send` | AuthGuard, ConfigurationExistsGuard | Send an email using the platform SMTP configuration |
+| POST | `api/email/send` | AuthGuard, ConfigurationExistsGuard | Persist + send an email; returns `email_uuid` and `short_code` |
+| GET | `api/email` | AuthGuard | List delivery records (filters: state, client, dates, short_code; paginated) |
+| GET | `api/email/:emailId` | AuthGuard | Email detail with full attempt log history (`emailId` = uuid or short code) |
+| POST | `api/email/:emailId/retry` | AuthGuard, ConfigurationExistsGuard | Retry one specific delivery in one click |
 | POST | `api/smtp-server/add` | AuthGuard, ConfigurationExistsGuard | Add an SMTP server to the catalog |
 | POST | `api/configuration/add` | AuthGuard | Create the global Nexlify configuration |
 | GET | `api/configuration/get` | AuthGuard | Read global configuration |
