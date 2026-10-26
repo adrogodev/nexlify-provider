@@ -7,9 +7,16 @@ export class JwtGeneratorHelper implements IJwtGenerator {
 
     #ALGORITHM: Algorithm = "HS512";
 
+    #assertKey(key: string): string {
+        if (!key) {
+            throw new Error("A non-empty JWT key is required");
+        }
+        return key;
+    }
+
     public createTokenWithExpiration = <T>(options: { data: T; key: string; expiresIn: string; }): string => {
         const { ...values } = options;
-        values.key = values.key === "" ? "k3yjw7k73y" : values.key;
+        values.key = this.#assertKey(values.key);
         const timeElapsed = Date.now();
         const today = new Date(timeElapsed);
         const timestamp = today.toISOString();
@@ -28,7 +35,7 @@ export class JwtGeneratorHelper implements IJwtGenerator {
 
     public createTokenWithoutExpiration = <T>(options: { data: T; key: string; }): string => {
         const { ...values } = options;
-        values.key = values.key === "" ? "k3yjw7k73y" : values.key;
+        values.key = this.#assertKey(values.key);
         const timeElapsed = Date.now();
         const today = new Date(timeElapsed);
         const timestamp = today.toISOString();
@@ -49,7 +56,7 @@ export class JwtGeneratorHelper implements IJwtGenerator {
         let isNotValid = false;
         let data: Nullable<JWTPayload<T>> = null;
 
-        key = key === "" ? "k3yjw7k73y" : key;
+        key = this.#assertKey(key);
 
         try {
             data = jwt.verify(token, key) as JWTPayload<T>
