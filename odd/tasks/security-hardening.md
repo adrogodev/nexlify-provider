@@ -26,8 +26,21 @@ Test runner: `pnpm test` (Jest, rootDir `src`, colocated `*.spec.ts`) + `pnpm te
 | T3 | S3 | inline | 8c5776a feat(security): reemplaza SHA-256 por bcrypt en credenciales con soporte legacy y mejora automatica al iniciar sesion |
 | T4 | S4 | inline | 7692801 fix(security): protege endpoints de email y master con AuthGuard, aplica ConfigurationExistsGuard y corrige bypass en SmtpServerExistsGuard |
 | T5 | S5 | inline | a3ade78 feat(email): envio de correo con credenciales SMTP de configuracion global, sin credenciales dummy |
-| T6 | S6 | inline | pending |
+| T6 | S6 | inline | 839fcf6 docs: README real del proyecto con endpoints, auth, env vars, migracion bcrypt y tests e2e reales |
 
 ## Log
 
 - L1 (2026-10-26) — Original request verbatim: "Mira pudes hacer los cambios y actualizar todo lo que me recomiendas basado en las Cosas que debería mirar" — refers to the four recommendation areas from the earlier analysis: (1) JWT fallback key + SHA-256 unsalted + `rejectUnauthorized:false` TLS, (2) unguarded `api/email/send` + `api/master/id-types` + unused `ConfigurationExistsGuard`, (3) no tests, (4) boilerplate README. Scope decision by orchestrator: `send-email` stub also wired to real configuration (S5) since it was flagged as unfinished; assumptions documented as assumptions.
+- L2 (2026-10-26) — Execution notes:
+  - Verification: `pnpm test` → 27 passed (0 failed); `pnpm test:e2e` → 3 passed (0 failed); `pnpm build` clean after each unit. Whole-module boot in e2e doubles as the differential check that existing flows still start.
+  - T2: editing `.env.example` was denied by the permission rules; the new env var is documented in README instead.
+  - T6 pre-existing gaps fixed while making e2e runnable: `test/jest-e2e.json` lacked `src/...` moduleNameMapper, `.tsx` transform, a `transformIgnorePatterns` exception for ESM-only `uuid`, and a NODE_ENV setup file (`test/e2e-env.setup.ts`).
+  - Project maps UnauthenticatedException → 403 (existing policy); e2e asserts 403 for unauthenticated guarded endpoints.
+- Risk lines:
+  - S1: Risk: item 3 (JWT helper shared by every token flow; empty-key input now throws).
+  - S2: Risk: item 5 (mailer TLS behavior becomes env-dependent; secured-by-default).
+  - S3: Risk: item 1 + item 5 (persisted credential format migration to bcrypt; new `bcryptjs` dependency at runtime).
+  - S4: Risk: item 3 (public endpoint contract change: `api/email/send`, `api/master/id-types` now require JWT; `api/smtp-server/add` requires configuration; SmtpServerExistsGuard denies when platform unconfigured).
+  - S5: Risk: item 3 (send-email outcome now reflects real mailer result and global configuration).
+  - S6: Risk: none.
+
