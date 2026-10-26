@@ -1,13 +1,15 @@
 import { IdTypeRepository } from './id-type.repository';
 import { EmailSendLogsRepository } from './email-send-logs.repository';
 import { EmailsRepository } from './emails.repository';
+import { EmailAttachmentsRepository } from './email-attachments.repository';
+import { EmailEventSubscriptionsRepository } from './email-event-subscriptions.repository';
 import { AdminUserRepository } from './admin-user.repository';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ClientRepository } from './client.repository';
 import { NexlifyConfigurationRepository } from './nexlify-configuration.repository';
 import { SmtpServerRepository } from './smtp-server.repository';
-import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY, TEMPLATES_REPOSITORY, USERS_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY } from 'src/core/application/contracts/persistence';
+import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY, TEMPLATES_REPOSITORY, USERS_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY } from 'src/core/application/contracts/persistence';
 import { ClientCredentialsRepository } from './client_credentials.repository';
 import { NexlifyKeysRepository } from './nexlify-keys.repository';
 import { NexlifyKeysLogsRepository } from './nexlify-keys-logs.repository';
@@ -60,6 +62,14 @@ import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
             useClass: EmailSendLogsRepository
         },
         {
+            provide: EMAIL_ATTACHMENTS_REPOSITORY,
+            useClass: EmailAttachmentsRepository
+        },
+        {
+            provide: EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY,
+            useClass: EmailEventSubscriptionsRepository
+        },
+        {
             provide: USERS_REPOSITORY,
             useClass: UsersRepository
         },
@@ -87,6 +97,8 @@ import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
         ID_TYPE_REPOSITORY,
         EMAILS_REPOSITORY,
         EMAIL_SEND_LOGS_REPOSITORY,
+        EMAIL_ATTACHMENTS_REPOSITORY,
+        EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY,
         USERS_REPOSITORY,
         TEMPLATES_REPOSITORY,
         WEBHOOK_ENDPOINTS_REPOSITORY,

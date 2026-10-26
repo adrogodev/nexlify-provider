@@ -8,4 +8,5 @@ export class AppConfigService implements IAppConfig {
     public readonly JWT_EXPIRATION_TIME = _env.JWT_EXPIRATION_TIME;
     public readonly ENCRYPT_KEY = _env.ENCRYPT_KEY;
     public readonly PLATFORM_URL = _env.PLATFORM_URL;
+    public readonly INBOUND_WEBHOOK_SECRET = _env.INBOUND_WEBHOOK_SECRET;
 }

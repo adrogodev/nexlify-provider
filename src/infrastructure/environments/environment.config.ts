@@ -13,4 +13,6 @@ export interface ApplicationEnvs {
     JWT_SECRET_KEY: string;
     JWT_EXPIRATION_TIME: number;
     ENCRYPT_KEY: string;
+    /** Shared secret of the provider-agnostic inbound webhook (HMAC-SHA256 over the raw body). */
+    INBOUND_WEBHOOK_SECRET: string;
 }

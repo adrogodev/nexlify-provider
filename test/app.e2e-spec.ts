@@ -24,6 +24,8 @@ describe('API (e2e)', () => {
                 admin_user: {},
                 emails: { findMany: jest.fn(async () => []) },
                 email_send_logs: {},
+                email_attachments: {},
+                email_event_subscriptions: {},
                 id_types: { findMany: jest.fn(async () => []) },
                 webhook_endpoints: {},
                 webhook_deliveries: {},

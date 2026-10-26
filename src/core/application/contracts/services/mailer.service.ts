@@ -10,7 +10,9 @@ export interface MailerPayload {
 export interface MailerResult {
     ok: boolean,
     /** Human-readable outcome: success confirmation or the failure message. */
-    message: string
+    message: string,
+    /** Nodemailer Message-ID of the sent email (present only on success): inbound replies are threaded by it. */
+    messageId?: string
 }
 
 export interface IMailerService {

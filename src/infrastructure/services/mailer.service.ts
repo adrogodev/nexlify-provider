@@ -14,7 +14,7 @@ export class MailerService implements IMailerService {
             const transporter = await this.#getTransporter(payload.transporter);
             const { ...data } = payload.email;
 
-            await transporter.sendMail({
+            const info = await transporter.sendMail({
                 from: data.from,
                 to: Array.isArray(data.to) ? data.to.join(',') : data.to,
                 subject: data.subject,
@@ -23,7 +23,11 @@ export class MailerService implements IMailerService {
                 attachments: data.attachments
             })
 
-            return { ok: true, message: 'Correo enviado con exito' };
+            const result: MailerResult = { ok: true, message: 'Correo enviado con exito' };
+            if (typeof info?.messageId === 'string') {
+                result.messageId = info.messageId;
+            }
+            return result;
 
         } catch (error) {
             const message = `Ha ocurrido un error al enviar: ${error}`;

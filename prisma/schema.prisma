@@ -155,6 +155,11 @@ model id_types {
   updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 }
 
+enum EmailDirection {
+  SENT
+  RECEIVED
+}
+
 enum EmailState {
   QUEUED
   SENDING
@@ -162,6 +167,7 @@ enum EmailState {
   WARNING
   FAILED
   RETRYING
+  RECEIVED
 }
 
 enum EmailLogLevel {
@@ -184,6 +190,9 @@ model emails {
   attempts    Int        @default(0)
   next_retry_at DateTime?
   sent_at     DateTime?
+  message_id  String?    @db.VarChar(255)
+  direction   EmailDirection @default(SENT)
+  parent_email_id BigInt?
   created_at  DateTime?  @default(now()) @db.Timestamptz(6)
   updated_at  DateTime?  @default(now()) @db.Timestamptz(6)
 
@@ -200,6 +209,35 @@ model email_send_logs {
   created_at DateTime?     @default(now()) @db.Timestamptz(6)
 
   @@index([id_email])
+}
+
+model email_attachments {
+  id_attachment BigInt    @id @default(autoincrement())
+  id_email      BigInt
+  filename      String    @db.VarChar(255)
+  content_type  String?   @db.VarChar(100)
+  size_bytes    Int?
+  content       String?   @db.Text
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([id_email])
+}
+
+model email_event_subscriptions {
+  id_subscription     BigInt    @id @default(autoincrement())
+  subscription_uuid   String    @unique @db.Uuid @default(dbgenerated("gen_random_uuid()"))
+  id_client           BigInt
+  id_webhook_endpoint BigInt
+  events              String    @db.VarChar(300)
+  include_body        Boolean   @default(false)
+  include_dates       Boolean   @default(true)
+  include_sender      Boolean   @default(true)
+  include_recipients  Boolean   @default(true)
+  include_attachments Boolean   @default(false)
+  is_active           Boolean   @default(true)
+  created_at          DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime? @default(now()) @db.Timestamptz(6)
 }
 
 model webhook_endpoints {

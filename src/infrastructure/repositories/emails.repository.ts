@@ -22,6 +22,10 @@ export class EmailsRepository extends BaseRepository<Email, 'id_email'> implemen
         });
     }
 
+    public async findByMessageId(messageId: string): Promise<Email | null> {
+        return await this._model.findFirst({ where: { message_id: messageId } });
+    }
+
     public async findQueued(limit: number): Promise<Email[]> {
         return await this._model.findMany({
             where: {

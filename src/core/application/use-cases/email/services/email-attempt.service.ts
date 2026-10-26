@@ -106,6 +106,13 @@ export class EmailAttemptService {
         email.sent_at = sent_at;
         email.next_retry_at = next_retry_at;
 
+        // S2: capture the Message-ID reported by the transport so inbound replies
+        // can be threaded onto this row. A failing attempt (or a transport that
+        // does not report a messageId) never clears or overwrites the field.
+        if (mailerResult.ok && mailerResult.messageId) {
+            email.message_id = mailerResult.messageId;
+        }
+
         const updatedEmail = await this._emailsRepository.update(email.id_email, email);
         const finalEmail = updatedEmail ?? email;
 

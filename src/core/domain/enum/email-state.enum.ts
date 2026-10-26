@@ -5,4 +5,5 @@ export enum EmailStateEnum {
     WARNING = 'WARNING',
     FAILED = 'FAILED',
     RETRYING = 'RETRYING',
+    RECEIVED = 'RECEIVED',
 }

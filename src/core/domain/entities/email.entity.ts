@@ -1,4 +1,4 @@
-import { EmailStateEnum } from "../enum";
+import { EmailDirectionEnum, EmailStateEnum } from "../enum";
 
 export class Email {
     constructor(
@@ -16,6 +16,9 @@ export class Email {
         public next_retry_at: Nullable<Date>,
         public sent_at: Nullable<Date>,
         public created_at: Nullable<Date>,
-        public updated_at: Nullable<Date>
+        public updated_at: Nullable<Date>,
+        public message_id: Nullable<string>,
+        public direction: EmailDirectionEnum,
+        public parent_email_id: Nullable<bigint>
     ) { }
 }

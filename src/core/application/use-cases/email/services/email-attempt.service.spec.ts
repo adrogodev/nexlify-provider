@@ -252,4 +252,46 @@ describe('EmailAttemptService', () => {
         const { service, email } = build({ config: { ...config, id_smtp_server: null } });
         await expect(service.attempt(email as Email)).rejects.toThrow(/configura/i);
     });
+
+    describe('message_id capture (S2)', () => {
+        it('persists the nodemailer messageId into the email row on a successful attempt', async () => {
+            const { service, emailsRepo, mailer } = build({
+                mailerResult: { ok: true, message: 'Correo enviado con exito', messageId: '<reply-ok@server.local>' },
+            });
+
+            const result = await service.attempt({ ...baseEmail } as Email);
+
+            expect(mailer.send).toHaveBeenCalledTimes(1);
+            expect(emailsRepo.update).toHaveBeenCalledWith(100n, expect.objectContaining({ message_id: '<reply-ok@server.local>' }));
+            expect(result.message_id).toBe('<reply-ok@server.local>');
+            expect(result.state).toBe(EmailStateEnum.SENT);
+        });
+
+        it('keeps the send outcome graceful when the successful response carries no messageId', async () => {
+            const { service, emailsRepo } = build({
+                mailerResult: { ok: true, message: 'Correo enviado con exito' },
+            });
+
+            const result = await service.attempt({ ...baseEmail } as Email);
+
+            expect(result.message_id).toBeUndefined();
+            const updatePayload = emailsRepo.update.mock.calls[0][1] as Record<string, unknown>;
+            expect('message_id' in updatePayload).toBe(false);
+            expect(result.state).toBe(EmailStateEnum.SENT);
+        });
+
+        it('clears nothing on failure: a failed attempt leaves a previously captured messageId untouched', async () => {
+            const { service, emailsRepo } = build({
+                mailerResult: { ok: false, message: 'SMTP connection refused' },
+                existing: { attempts: 1, state: EmailStateEnum.RETRYING, message_id: '<prev@server.local>' },
+            });
+
+            const result = await service.attempt({ ...baseEmail } as Email);
+
+            expect(result.state).toBe(EmailStateEnum.RETRYING);
+            const updatePayload = emailsRepo.update.mock.calls[0][1] as Record<string, unknown>;
+            expect(updatePayload['message_id']).toBe('<prev@server.local>');
+            expect(result.message_id).toBe('<prev@server.local>');
+        });
+    });
 });

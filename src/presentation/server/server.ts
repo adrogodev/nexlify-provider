@@ -15,7 +15,9 @@ export class Server {
     #app?: INestApplication;
 
     async start(): Promise<void> {
-        this.#app = await NestFactory.create(AppModule);
+        // rawBody keeps the exact request bytes for the inbound webhook HMAC signature
+        // (String attaches the parsed body only; the bytes are what gets verified).
+        this.#app = await NestFactory.create(AppModule, { rawBody: true });
 
         this.#registerMiddlewares();
         this.#registerGlobals();

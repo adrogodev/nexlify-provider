@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, ID_GENERATOR, JWT_GENERATOR, PASSWORD_HASHER, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
-import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY } from "src/core/application/contracts/persistence";
+import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY } from "src/core/application/contracts/persistence";
 import { HTTP_DELIVERY_SERVICE, MAILER_SERVICE } from "src/core/application/contracts/services";
 import { GenerateNexlifyKeyUseCase, ListMyNexlifyKeysUseCase, RevokeNexlifyKeyUseCase } from "src/core/application/use-cases/nexlify-keys";
 import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-cases/admin-user";
@@ -11,6 +11,9 @@ import { ForgotPasswordUseCase } from "src/core/application/use-cases/clients/fo
 import { ResetPasswordUseCase } from "src/core/application/use-cases/clients/reset-password";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
 import { EmailAttemptService } from "src/core/application/use-cases/email/services/email-attempt.service";
+import { InboundEmailUseCase } from "src/core/application/use-cases/email/inbound-email/inbound-email.usecase";
+import { InboundWebhookSecurityService } from "src/infrastructure/services/inbound-webhook.security";
+import { InboundEmailController } from "./inbound-email.controller";
 import { DiffuseEmailUseCase } from "src/core/application/use-cases/email/diffuse-email/diffuse-email.usecase";
 import { GetEmailDetailUseCase } from "src/core/application/use-cases/email/get-email-detail/get-email-detail.usecase";
 import { GetEmailsUseCase } from "src/core/application/use-cases/email/get-emails/get-emails.usecase";
@@ -53,6 +56,7 @@ import { WebhooksController } from "./webhooks.controller";
         EmailController,
         NexlifyConfigurationController,
         VerifyController,
+        InboundEmailController,
         MasterController,
         NexlifyKeysController,
         UsersController,
@@ -118,6 +122,15 @@ import { WebhooksController } from "./webhooks.controller";
             provide: SendEmailUseCase,
             useFactory: (configRepo, emailsRepo, attemptService, idGen) => new SendEmailUseCase(configRepo, emailsRepo, attemptService, idGen),
             inject: [NEXLIFY_CONFIGURATION_REPOSITORY, EMAILS_REPOSITORY, EmailAttemptService, ID_GENERATOR]
+        },
+        {
+            provide: InboundEmailUseCase,
+            useFactory: (emailsRepo, attachmentsRepo, idGen) => new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen),
+            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, ID_GENERATOR]
+        },
+        {
+            provide: InboundWebhookSecurityService,
+            useClass: InboundWebhookSecurityService
         },
         {
             provide: GetEmailDetailUseCase,
