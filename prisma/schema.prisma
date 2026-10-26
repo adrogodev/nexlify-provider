@@ -256,6 +256,7 @@ model webhook_deliveries {
   id_endpoint   BigInt
   id_email      BigInt
   event         String    @db.VarChar(20)
+  payload       String?   @db.Text
   attempt       Int       @default(0)
   ok            Boolean?
   status_code   Int?

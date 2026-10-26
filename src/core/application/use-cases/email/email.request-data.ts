@@ -58,6 +58,18 @@ export class EmailIdParam {
     emailId: string;
 }
 
+export class EmailAttachmentIndexParam {
+    /** Accepts the email uuid (v4) or the short code (NX-XXXXXXX). */
+    @Validate(EmailIdConstraint)
+    emailId: string;
+
+    /** Zero-based index into the email's ingestion-ordered attachment list. */
+    @Type(() => Number)
+    @IsInt()
+    @Min(0)
+    attachmentIndex: number;
+}
+
 export class DiffuseEmailRequestData {
     @IsArray()
     @ArrayMinSize(1)

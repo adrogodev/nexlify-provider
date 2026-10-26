@@ -35,6 +35,7 @@ const deliveryRow = (overrides: Record<string, unknown> = {}) => ({
     id_endpoint: 3n,
     id_email: 9n,
     event: 'SENT',
+    payload: null,
     attempt: 0,
     ok: null,
     status_code: null,
@@ -102,6 +103,41 @@ describe('WebhookDeliveryScheduler', () => {
             error: null,
             next_retry_at: null,
         }));
+    });
+
+    it('keeps the delivery-status generic payload byte-exact when the row carries no stored payload', async () => {
+        const { scheduler, post } = build({ due: [deliveryRow({ payload: null })] });
+
+        await scheduler.tick();
+
+        const request = post.mock.calls[0][0];
+        expect(request.body).toBe(JSON.stringify(expectedPayload));
+        expect(JSON.parse(request.body)).toEqual({ ...expectedPayload, sent_at: new Date('2026-01-01T00:00:00Z').toISOString() });
+    });
+
+    it('posts a stored payload verbatim and signs over it', async () => {
+        const stored = JSON.stringify({
+            event: 'RECEIVED_REPLY',
+            email_uuid: 'bbbbbbbb-2222-4111-8111-222222222222',
+            parent: { email_uuid: 'aaaaaaaa-1111-4111-8111-111111111111', short_code: 'NX-PARENT1' },
+            received_at: '2026-10-26T10:00:00.000Z',
+            body: { text: 'cuerpo', html: null },
+        });
+        const { scheduler, post } = build({
+            due: [deliveryRow({ event: 'RECEIVED_REPLY', payload: stored })],
+            email: { ...emailRow, id_email: 9n, email_uuid: 'bbbbbbbb-2222-4111-8111-222222222222' },
+        });
+
+        await scheduler.tick();
+
+        const request = post.mock.calls[0][0];
+        expect(request.body).toBe(stored);
+        expect(request.headers).toEqual({
+            'Content-Type': 'application/json',
+            'X-Nexlify-Event': 'RECEIVED_REPLY',
+            'X-Nexlify-Delivery': '44',
+            'X-Nexlify-Signature': createHmac('sha256', 'endpoint-secret').update(stored).digest('hex'),
+        });
     });
 
     it('schedules a 60s retry per failed attempt', async () => {

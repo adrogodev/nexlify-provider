@@ -1,8 +1,9 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from "@nestjs/common";
-import { EmailDetailDTO, EmailListItemDTO, PaginateBaseDTO, SendEmailResultDTO } from "src/core/application/dtos";
+import { EmailAttachmentContentDTO, EmailDetailDTO, EmailListItemDTO, PaginateBaseDTO, SendEmailResultDTO } from "src/core/application/dtos";
+import { DownloadEmailAttachmentUseCase } from "src/core/application/use-cases/email/get-email-detail/download-email-attachment.usecase";
 import { GetEmailDetailUseCase } from "src/core/application/use-cases/email/get-email-detail/get-email-detail.usecase";
 import { GetEmailsUseCase } from "src/core/application/use-cases/email/get-emails/get-emails.usecase";
-import { DiffuseEmailRequestData, EmailIdParam, GetEmailsRequestData } from "src/core/application/use-cases/email/email.request-data";
+import { DiffuseEmailRequestData, EmailAttachmentIndexParam, EmailIdParam, GetEmailsRequestData } from "src/core/application/use-cases/email/email.request-data";
 import { RetryEmailUseCase } from "src/core/application/use-cases/email/retry-email/retry-email.usecase";
 import { SendEmailRequestData } from "src/core/application/use-cases/email/send-email/send-email.request-data";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
@@ -19,6 +20,7 @@ export class EmailController {
         private readonly _getEmailsUseCase: GetEmailsUseCase,
         private readonly _retryEmailUseCase: RetryEmailUseCase,
         private readonly _diffuseEmailUseCase: DiffuseEmailUseCase,
+        private readonly _downloadEmailAttachmentUseCase: DownloadEmailAttachmentUseCase,
     ) { }
 
     @Post('send')
@@ -75,6 +77,16 @@ export class EmailController {
             ok: true,
             message: 'Reintento de envio ejecutado',
             data: await this._retryEmailUseCase.run({ data: emailId })
+        })
+    }
+
+    @Get(':emailId/attachments/:attachmentIndex')
+    @HttpCode(200)
+    async downloadAttachment(@Param() params: EmailAttachmentIndexParam): Promise<ClientResponse<EmailAttachmentContentDTO>> {
+        return new ClientResponse({
+            ok: true,
+            message: 'Adjunto obtenido con exito',
+            data: await this._downloadEmailAttachmentUseCase.run({ data: { emailId: params.emailId, index: params.attachmentIndex } })
         })
     }
 }

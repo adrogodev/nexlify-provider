@@ -79,16 +79,19 @@ export class WebhookDeliveryScheduler implements OnModuleInit, OnModuleDestroy {
 
         // The signature is the HMAC-SHA256 hex of the EXACT serialized body:
         // build the payload object once and sign the string that goes out.
-        const payload = {
-            event: delivery.event,
-            email_uuid: email.email_uuid,
-            short_code: email.short_code,
-            attempts: email.attempts,
-            subject: email.subject,
-            to_email: email.to_email,
-            sent_at: email.sent_at,
-        };
-        const body = JSON.stringify(payload);
+        // A queued row may carry its own prebuilt payload (S5 subscriptions):
+        // it goes out verbatim; otherwise the delivery-status shape applies.
+        const body = delivery.payload !== undefined && delivery.payload !== null && delivery.payload.trim() !== ''
+            ? delivery.payload
+            : JSON.stringify({
+                event: delivery.event,
+                email_uuid: email.email_uuid,
+                short_code: email.short_code,
+                attempts: email.attempts,
+                subject: email.subject,
+                to_email: email.to_email,
+                sent_at: email.sent_at,
+            });
         const signature = createHmac('sha256', endpoint.secret).update(body).digest('hex');
 
         const result = await this._httpDeliveryService.post({

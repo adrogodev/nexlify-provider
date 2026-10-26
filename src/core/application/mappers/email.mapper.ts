@@ -1,6 +1,7 @@
 import { Email } from "src/core/domain/entities/email.entity";
+import { EmailAttachment } from "src/core/domain/entities/email-attachment.entity";
 import { EmailSendLog } from "src/core/domain/entities/email-send-log.entity";
-import { EmailDetailDTO, EmailDTO, EmailListItemDTO, EmailSendLogDTO } from "../dtos";
+import { EmailAttachmentMetadataDTO, EmailDetailDTO, EmailDTO, EmailListItemDTO, EmailSendLogDTO } from "../dtos";
 
 export class EmailMapper {
     public static mapEmail(email: Email): EmailDTO {
@@ -15,7 +16,8 @@ export class EmailMapper {
             attempts: email.attempts,
             next_retry_at: email.next_retry_at,
             sent_at: email.sent_at,
-            created_at: email.created_at
+            created_at: email.created_at,
+            direction: email.direction
         };
     }
 
@@ -31,7 +33,7 @@ export class EmailMapper {
         };
     }
 
-    public static mapEmailDetail(email: Email, logs: EmailSendLog[]): EmailDetailDTO {
+    public static mapEmailDetail(email: Email, logs: EmailSendLog[], attachments: EmailAttachment[] = [], parentEmailUuid: string | null = null): EmailDetailDTO {
         return {
             ...EmailMapper.mapEmail(email),
             logs: logs.map((log): EmailSendLogDTO => ({
@@ -41,6 +43,12 @@ export class EmailMapper {
                 message: log.message,
                 smtp_host: log.smtp_host,
                 created_at: log.created_at
+            })),
+            parent_email_uuid: parentEmailUuid,
+            attachments: attachments.map((attachment): EmailAttachmentMetadataDTO => ({
+                filename: attachment.filename,
+                content_type: attachment.content_type,
+                size_bytes: attachment.size_bytes
             }))
         };
     }

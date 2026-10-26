@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, ID_GENERATOR, JWT_GENERATOR, PASSWORD_HASHER, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
-import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY } from "src/core/application/contracts/persistence";
+import { EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY } from "src/core/application/contracts/persistence";
 import { HTTP_DELIVERY_SERVICE, MAILER_SERVICE } from "src/core/application/contracts/services";
 import { GenerateNexlifyKeyUseCase, ListMyNexlifyKeysUseCase, RevokeNexlifyKeyUseCase } from "src/core/application/use-cases/nexlify-keys";
 import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-cases/admin-user";
@@ -12,6 +12,9 @@ import { ResetPasswordUseCase } from "src/core/application/use-cases/clients/res
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
 import { EmailAttemptService } from "src/core/application/use-cases/email/services/email-attempt.service";
 import { InboundEmailUseCase } from "src/core/application/use-cases/email/inbound-email/inbound-email.usecase";
+import { CreateSubscriptionUseCase } from "src/core/application/use-cases/email-event-subscriptions/create-subscription/create-subscription.usecase";
+import { GetMySubscriptionsUseCase } from "src/core/application/use-cases/email-event-subscriptions/get-my-subscriptions/get-my-subscriptions.usecase";
+import { UpdateSubscriptionUseCase } from "src/core/application/use-cases/email-event-subscriptions/update-subscription/update-subscription.usecase";
 import { InboundWebhookSecurityService } from "src/infrastructure/services/inbound-webhook.security";
 import { InboundEmailController } from "./inbound-email.controller";
 import { DiffuseEmailUseCase } from "src/core/application/use-cases/email/diffuse-email/diffuse-email.usecase";
@@ -19,6 +22,7 @@ import { GetEmailDetailUseCase } from "src/core/application/use-cases/email/get-
 import { GetEmailsUseCase } from "src/core/application/use-cases/email/get-emails/get-emails.usecase";
 import { RetryDueEmailsUseCase } from "src/core/application/use-cases/email/retry-due/retry-due-emails.usecase";
 import { RetryEmailUseCase } from "src/core/application/use-cases/email/retry-email/retry-email.usecase";
+import { DownloadEmailAttachmentUseCase } from "src/core/application/use-cases/email/get-email-detail/download-email-attachment.usecase";
 import { EmailRetryScheduler } from "src/infrastructure/services/email-retry.scheduler.service";
 import { AddNexlifyConfigurationUseCase, GetNexlifyConfigurationUseCase, UpdateNexlifyConfigurationUseCase } from "src/core/application/use-cases/nexlify-configuration";
 import { AddSmtpServerUseCase } from "src/core/application/use-cases/smtp-server";
@@ -46,6 +50,7 @@ import { CreateTemplateUseCase, GetTemplatesUseCase, UpdateTemplateUseCase } fro
 import { ListMyWebhookEndpointsUseCase, RegisterWebhookEndpointUseCase, UpdateWebhookEndpointUseCase } from "src/core/application/use-cases/webhooks";
 import { WebhookDeliveryScheduler } from "src/infrastructure/services/webhook-delivery.scheduler.service";
 import { WebhooksController } from "./webhooks.controller";
+import { EmailEventSubscriptionsController } from "./email-event-subscriptions.controller";
 
 @Module({
     imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
@@ -61,7 +66,8 @@ import { WebhooksController } from "./webhooks.controller";
         NexlifyKeysController,
         UsersController,
         TemplatesController,
-        WebhooksController
+        WebhooksController,
+        EmailEventSubscriptionsController
     ],
     providers: [
         AuthGuard,
@@ -125,8 +131,8 @@ import { WebhooksController } from "./webhooks.controller";
         },
         {
             provide: InboundEmailUseCase,
-            useFactory: (emailsRepo, attachmentsRepo, idGen) => new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen),
-            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, ID_GENERATOR]
+            useFactory: (emailsRepo, attachmentsRepo, idGen, subscriptionsRepo, webhookDeliveriesRepo) => new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen, subscriptionsRepo, webhookDeliveriesRepo),
+            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, ID_GENERATOR, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY]
         },
         {
             provide: InboundWebhookSecurityService,
@@ -134,8 +140,13 @@ import { WebhooksController } from "./webhooks.controller";
         },
         {
             provide: GetEmailDetailUseCase,
-            useFactory: (emailsRepo, logsRepo) => new GetEmailDetailUseCase(emailsRepo, logsRepo),
-            inject: [EMAILS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY]
+            useFactory: (emailsRepo, logsRepo, attachmentsRepo) => new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo),
+            inject: [EMAILS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY]
+        },
+        {
+            provide: DownloadEmailAttachmentUseCase,
+            useFactory: (emailsRepo, attachmentsRepo) => new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo),
+            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY]
         },
         {
             provide: GetEmailsUseCase,
@@ -271,6 +282,21 @@ import { WebhooksController } from "./webhooks.controller";
             provide: UpdateWebhookEndpointUseCase,
             useFactory: (context, webhookEndpointsRepo) => new UpdateWebhookEndpointUseCase(context, webhookEndpointsRepo),
             inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY]
+        },
+        {
+            provide: CreateSubscriptionUseCase,
+            useFactory: (context, webhookEndpointsRepo, subscriptionsRepo) => new CreateSubscriptionUseCase(context, webhookEndpointsRepo, subscriptionsRepo),
+            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY]
+        },
+        {
+            provide: GetMySubscriptionsUseCase,
+            useFactory: (context, subscriptionsRepo) => new GetMySubscriptionsUseCase(context, subscriptionsRepo),
+            inject: [REQUEST_CONTEXT, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY]
+        },
+        {
+            provide: UpdateSubscriptionUseCase,
+            useFactory: (context, subscriptionsRepo) => new UpdateSubscriptionUseCase(context, subscriptionsRepo),
+            inject: [REQUEST_CONTEXT, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY]
         },
         {
             provide: WebhookDeliveryScheduler,

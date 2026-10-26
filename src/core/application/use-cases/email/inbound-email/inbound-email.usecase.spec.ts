@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { InboundEmailUseCase } from './inbound-email.usecase';
-import { EmailDirectionEnum, EmailStateEnum } from 'src/core/domain/enum';
+import { EmailDirectionEnum, EmailStateEnum, EmailEventEnum } from 'src/core/domain/enum';
 
 describe('InboundEmailUseCase', () => {
     const parentEmail = {
@@ -23,8 +23,23 @@ describe('InboundEmailUseCase', () => {
         direction: EmailDirectionEnum.SENT,
         parent_email_id: null,
     };
+    const matchingSubscription = {
+        id_subscription: 1n,
+        subscription_uuid: '44444444-4444-4444-8444-444444444444',
+        id_client: 70n,
+        id_webhook_endpoint: 900n,
+        events: 'RECEIVED_REPLY',
+        include_body: false,
+        include_dates: true,
+        include_sender: true,
+        include_recipients: true,
+        include_attachments: false,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: null,
+    };
 
-    const build = (overrides?: { parent?: unknown; createThrows?: boolean; attachmentsCreateThrowsOn?: string }) => {
+    const build = (overrides?: { parent?: unknown; createThrows?: boolean; attachmentsCreateThrowsOn?: string; matchingSubscriptions?: unknown[]; fanoutFails?: boolean }) => {
         let created = 0;
         // Without an explicit `parent: undefined` override the mock resolves the
         // shared parentEmail row (threaded flows); with it, nothing matches.
@@ -52,6 +67,10 @@ describe('InboundEmailUseCase', () => {
             }),
         } as never;
         const attachmentsRepo = {
+            findByEmail: jest.fn(async (id_email: bigint) =>
+                id_email === 1n
+                    ? [{ id_attachment: 3n, id_email: 1n, filename: 'a.pdf', content_type: 'application/pdf', size_bytes: 100, content: Buffer.from('binario').toString('base64'), created_at: new Date(), updated_at: null }]
+                    : []),
             create: jest.fn(async (row: Record<string, unknown>) => {
                 if (overrides?.attachmentsCreateThrowsOn !== undefined && row['filename'] === overrides.attachmentsCreateThrowsOn) {
                     throw new Error('boom');
@@ -60,12 +79,23 @@ describe('InboundEmailUseCase', () => {
             }),
         } as never;
         const idGen = { generateShortCode: jest.fn(() => 'NX-INBND01'), generateUuid: jest.fn(() => 'code-never-generates-uuid') } as never;
-        const useCase = new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen);
+        const subscriptionsRepo = {
+            findActiveByClientIdAndEvent: jest.fn(async () => overrides?.matchingSubscriptions ?? [matchingSubscription]),
+        } as never;
+        const deliveriesRepo = {
+            create: jest.fn(async (row: Record<string, unknown>) => {
+                if (overrides?.fanoutFails) throw new Error('enqueue boom');
+                return row;
+            }),
+        } as never;
+        const useCase = new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen, subscriptionsRepo, deliveriesRepo);
         return {
             useCase,
             emailsRepo: emailsRepo as unknown as { findByMessageId: jest.Mock; create: jest.Mock },
             attachmentsRepo: attachmentsRepo as unknown as { create: jest.Mock },
             idGen: idGen as unknown as { generateShortCode: jest.Mock; generateUuid: jest.Mock },
+            subscriptionsRepo: subscriptionsRepo as unknown as { findActiveByClientIdAndEvent: jest.Mock },
+            deliveriesRepo: deliveriesRepo as unknown as { create: jest.Mock },
         };
     };
 
@@ -243,6 +273,174 @@ describe('InboundEmailUseCase', () => {
             expect(result.attachments_ingested).toBe(1);
             expect(result.attachments_rejected).toHaveLength(1);
             expect(result.attachments_rejected[0].filename).toBe('broken.bin');
+        });
+    });
+
+    describe('RECEIVED_REPLY fan-out matching (S5)', () => {
+        const gated = (over: Record<string, boolean> = {}) => ({
+            include_body: false,
+            include_dates: false,
+            include_sender: false,
+            include_recipients: false,
+            include_attachments: false,
+            ...over,
+        });
+        const payloadOf = (call: unknown): Record<string, unknown> => JSON.parse((call as Record<string, unknown>)['payload'] as string);
+
+        it('enqueues one webhook_deliveries row per ACTIVE subscription whose events include RECEIVED_REPLY', async () => {
+            const second = { ...matchingSubscription, id_subscription: 2n, id_webhook_endpoint: 901n };
+            const { useCase, deliveriesRepo, subscriptionsRepo } = build({ matchingSubscriptions: [matchingSubscription, second] });
+
+            const result = await useCase.run({
+                data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>' }),
+            });
+
+            expect(result.threaded).toBe(true);
+            expect(subscriptionsRepo.findActiveByClientIdAndEvent).toHaveBeenCalledWith(70n, EmailEventEnum.RECEIVED_REPLY);
+            expect(deliveriesRepo.create).toHaveBeenCalledTimes(2);
+            const first = deliveriesRepo.create.mock.calls[0][0] as Record<string, unknown>;
+            expect(first['id_endpoint']).toBe(matchingSubscription.id_webhook_endpoint);
+            expect(first['id_email']).toBe(1n);
+            expect(first['event']).toBe(EmailEventEnum.RECEIVED_REPLY);
+            expect(first['attempt']).toBe(0);
+            expect(first['ok']).toBeNull();
+            expect(first['status_code']).toBeNull();
+            expect(first['error']).toBeNull();
+            expect(first['next_retry_at']).toBeInstanceOf(Date);
+        });
+
+        it('enqueues nothing for a non-threaded standalone ingestion', async () => {
+            const { useCase, deliveriesRepo } = build({ parent: undefined });
+
+            await useCase.run({ data: input({}) });
+
+            expect(deliveriesRepo.create).not.toHaveBeenCalled();
+        });
+
+        it('matches only subscriptions of the parent client ingesting to a standalone thread (no client, no fan-out)', async () => {
+            const orphanParent = { ...parentEmail, id_client: null };
+            const { useCase, deliveriesRepo } = build({ parent: orphanParent });
+
+            await useCase.run({
+                data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>' }),
+            });
+
+            expect(deliveriesRepo.create).not.toHaveBeenCalled();
+        });
+
+        it('never rejects the ingestion when the fan-out enqueue fails', async () => {
+            const { useCase, deliveriesRepo } = build({ fanoutFails: true });
+
+            const result = await useCase.run({
+                data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>' }),
+            });
+
+            expect(result.received).toBe(true);
+            expect(result.threaded).toBe(true);
+            expect(result.attachments_ingested).toBe(0);
+        });
+
+        it('a duplicate ingestion never enqueues a second fan-out wave', async () => {
+            const { useCase, deliveriesRepo } = build({
+                parent: { ...parentEmail, message_id: '<reply@server1.local>', parent_email_id: 5n },
+            });
+
+            await useCase.run({ data: input({ message_id: '<reply@server1.local>' }) });
+
+            expect(deliveriesRepo.create).not.toHaveBeenCalled();
+        });
+
+        describe('field-gated payload', () => {
+            it('always carries event, reply uuid, parent link and received_at', async () => {
+                const { useCase, deliveriesRepo } = build();
+
+                await useCase.run({
+                    data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>', received_at: new Date('2026-10-26T10:00:00.000Z') }),
+                });
+
+                const payload = payloadOf(deliveriesRepo.create.mock.calls[0][0]);
+                expect(payload).toMatchObject({
+                    event: 'RECEIVED_REPLY',
+                    email_uuid: '22222222-2222-4111-8111-000000000001',
+                    parent: { email_uuid: parentEmail.email_uuid, short_code: 'NX-PARENT1' },
+                });
+                expect(payload['received_at']).toBe(payload['dates'] && (payload['dates'] as Record<string, unknown>)['received_at']);
+            });
+
+            it('omits body, attachments, sender, recipients and dates when the subscription disables them', async () => {
+                const { useCase, deliveriesRepo } = build({ matchingSubscriptions: [{ ...matchingSubscription, ...gated() }] });
+
+                await useCase.run({
+                    data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>', body_text: 'cuerpo', body_html: '<p>hola</p>', attachments: [{ filename: 'a.pdf', contentType: 'application/pdf' }] }),
+                });
+
+                const payload = payloadOf(deliveriesRepo.create.mock.calls[0][0]);
+                expect(Object.keys(payload)).toEqual(expect.arrayContaining(['event', 'email_uuid', 'parent', 'received_at']));
+                expect(Object.keys(payload)).toEqual(expect.not.arrayContaining(['body', 'attachments', 'sender', 'recipients', 'dates']));
+            });
+
+            it('includes body text and html only when include_body is enabled', async () => {
+                const { useCase, deliveriesRepo } = build({
+                    matchingSubscriptions: [{ ...matchingSubscription, ...gated({ include_body: true }) }],
+                });
+
+                await useCase.run({
+                    data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>', body_text: 'cuerpo', body_html: '<p>hola</p>' }),
+                });
+
+                const payload = payloadOf(deliveriesRepo.create.mock.calls[0][0]);
+                expect(payload['body']).toEqual({ text: 'cuerpo', html: '<p>hola</p>' });
+                expect(Object.keys(payload)).toEqual(expect.not.arrayContaining(['attachments', 'sender', 'recipients', 'dates']));
+            });
+
+            it('includes sender and recipients (from/to) only when enabled', async () => {
+                const { useCase, deliveriesRepo } = build({
+                    matchingSubscriptions: [{ ...matchingSubscription, include_sender: true, include_recipients: true, include_body: false, include_dates: false }],
+                });
+
+                await useCase.run({
+                    data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>' }),
+                });
+
+                const payload = payloadOf(deliveriesRepo.create.mock.calls[0][0]);
+                expect(payload['sender']).toBe('customer@test.local');
+                expect(payload['recipients']).toEqual({ from: 'customer@test.local', to: parentEmail.from_email });
+                expect(Object.keys(payload)).toEqual(expect.not.arrayContaining(['body', 'dates', 'attachments']));
+            });
+
+            it('dates include the reply sent_at (null) and the received timestamp only when enabled', async () => {
+                const { useCase, deliveriesRepo } = build({
+                    matchingSubscriptions: [{ ...matchingSubscription, ...gated({ include_dates: true }) }],
+                });
+                const receivedAt = new Date('2026-10-26T10:00:00.000Z');
+
+                await useCase.run({
+                    data: input({ message_id: '<reply@server1.local>', in_reply_to_message_id: '<parent@server.local>', received_at: receivedAt }),
+                });
+
+                const payload = payloadOf(deliveriesRepo.create.mock.calls[0][0]);
+                expect(payload['dates']).toEqual({ sent_at: null, received_at: receivedAt.toISOString() });
+                expect(Object.keys(payload)).toEqual(expect.not.arrayContaining(['body', 'sender', 'recipients', 'attachments']));
+            });
+
+            it('attachments carry metadata ONLY: filename, size and content type, never the base64 content', async () => {
+                const { useCase, deliveriesRepo } = build({
+                    matchingSubscriptions: [{ ...matchingSubscription, ...gated({ include_attachments: true }) }],
+                });
+
+                await useCase.run({
+                    data: input({
+                        message_id: '<reply@server1.local>',
+                        in_reply_to_message_id: '<parent@server.local>',
+                        attachments: [{ filename: 'a.pdf', contentType: 'application/pdf', size: 100, content: Buffer.from('binario').toString('base64') }],
+                    }),
+                });
+
+                const payload = payloadOf(deliveriesRepo.create.mock.calls[0][0]);
+                expect(payload['attachments']).toEqual([{ filename: 'a.pdf', size_bytes: 100, content_type: 'application/pdf' }]);
+                expect((payload['attachments'] as unknown[]).some((item) => JSON.stringify(item).includes(Buffer.from('binario').toString('base64')))).toBe(false);
+                expect(Object.keys(payload)).toEqual(expect.not.arrayContaining(['body', 'sender', 'recipients', 'dates']));
+            });
         });
     });
 });

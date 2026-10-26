@@ -4,6 +4,7 @@ export class WebhookDelivery {
         public id_endpoint: bigint,
         public id_email: bigint,
         public event: string,
+        public payload: Nullable<string>,
         public attempt: number,
         public ok: Nullable<boolean>,
         public status_code: Nullable<number>,

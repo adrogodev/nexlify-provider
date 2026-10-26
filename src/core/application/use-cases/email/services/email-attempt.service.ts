@@ -137,6 +137,7 @@ export class EmailAttemptService {
                         id_endpoint: endpoint.id_endpoint,
                         id_email: finalEmail.id_email,
                         event: state,
+                        payload: null,
                         attempt: 0,
                         ok: null,
                         status_code: null,

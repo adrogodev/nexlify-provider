@@ -32,12 +32,13 @@ Test runner: `pnpm test` + `pnpm test:e2e`. DB still down: `prisma validate`/`ge
 | T1 | S1 | delegated (worker) | pending |
 | T2 | S2 | delegated (worker) | pending |
 | T3 | S3 | delegated (worker) | pending |
-| T4 | S4 | delegated (worker) | pending |
-| T5 | S5 | delegated (worker) | pending |
-| T6 | S6 | delegated (worker) | pending |
+| T4 | S4 | delegated (worker) | pending-parent-commit |
+| T5 | S5 | delegated (worker) | pending-parent-commit |
+| T6 | S6 | delegated (worker) | pending-parent-commit |
 | T7 | S7 | inline (parent) | pending |
 
 ## Log
 
 - L1 (2026-10-26) — Original request verbatim: "Bien, ahora quiero que basado en todo el análisis que haz hecho del sistema que sea capaz de analizar y mapear tanto los emails que se envían como lo que son respondidos al correo mapeado y que hayan algunos eventos para habilitar lo que se quiere recibir, como por ejemplo: solo el cuerpo de correo, fechas de envió o respuesta del correo, quien lo recibe, quien lo envía, archivos adjuntos en el correo, entre otros detalles que consideres." — after the architecture question the user chose **Inbound webhook** (provider-agnostic POST ingestion) as the reception mechanism.
 - L2 (2026-10-26) — Standing rule from the user (uuid): uuid v4 ONLY from the database (`gen_random_uuid()`); short codes and secret/jti plain strings are the only legitimate code-side ids.
+- L3 (2026-10-26) — T4–T6 (S4/S5/S6) implemented: `EmailEventEnum` subscriptions management (create/get-my/update + controller), inbound fan-out enqueueing one `webhook_deliveries` row per matched ACTIVE subscription, and the S6 read side (detail direction/parent/attachments metadata + `GET api/email/:emailId/attachments/:index`). The field-gated payload needed a `payload String? @db.Text` column in `webhook_deliveries` and a scheduler branch (stored payload POSTed verbatim; rows without one keep the exact generic delivery-status shape) — surfaces explicitly extended by user approval option 1 (worker could not edit schema/scheduler otherwise); `pnpm prisma generate` ran offline. Verification: `pnpm test -- --runInBand` 27 suites / 185 tests passed, `pnpm test:e2e` 1 suite / 8 tests passed, `pnpm build` exit 0. DB migration still pending; nothing committed (parent owns git).

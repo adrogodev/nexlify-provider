@@ -1,4 +1,15 @@
-import { EmailStateEnum, EmailLogLevelEnum } from "src/core/domain/enum";
+import { EmailDirectionEnum, EmailLogLevelEnum, EmailStateEnum } from "src/core/domain/enum";
+
+export interface EmailAttachmentMetadataDTO {
+    filename: string,
+    content_type: string | null,
+    size_bytes: number | null
+}
+
+export interface EmailAttachmentContentDTO extends EmailAttachmentMetadataDTO {
+    /** The stored base64 of the file; null when the ingestion did not persist binary content. */
+    content_base64: string | null
+}
 
 export interface EmailDTO {
     email_uuid: string,
@@ -11,7 +22,8 @@ export interface EmailDTO {
     attempts: number | null,
     next_retry_at: Date | null,
     sent_at: Date | null,
-    created_at: Date | null
+    created_at: Date | null,
+    direction: EmailDirectionEnum | null
 }
 
 export interface EmailListItemDTO {
@@ -34,7 +46,9 @@ export interface EmailSendLogDTO {
 }
 
 export interface EmailDetailDTO extends EmailDTO {
-    logs: EmailSendLogDTO[]
+    logs: EmailSendLogDTO[],
+    parent_email_uuid: string | null,
+    attachments: EmailAttachmentMetadataDTO[]
 }
 
 export interface SendEmailResultDTO {

@@ -28,6 +28,16 @@ export class EmailEventSubscriptionsRepository extends BaseRepository<EmailEvent
         });
     }
 
+    public async findActiveByClientIdAndEvent(idClient: bigint, event: string): Promise<EmailEventSubscription[]> {
+        const active = await this.findActiveByClientId(idClient);
+        return active.filter((subscription) =>
+            subscription.events
+                .split(',')
+                .map((token) => token.trim())
+                .includes(event),
+        );
+    }
+
     #buildByIdClient(idClient: bigint, activeOnly?: boolean): Record<string, unknown> {
         return {
             id_client: idClient,

@@ -1,8 +1,8 @@
-import type { IEmailAttachmentsRepository, IEmailsRepository } from "src/core/application/contracts/persistence";
+import type { IEmailAttachmentsRepository, IEmailEventSubscriptionsRepository, IEmailsRepository, IWebhookDeliveriesRepository } from "src/core/application/contracts/persistence";
 import type { IIdGenerator } from "src/core/application/contracts/infrastructure";
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
 import type { Email } from "src/core/domain/entities/email.entity";
-import { EmailDirectionEnum, EmailStateEnum } from "src/core/domain/enum";
+import { EmailDirectionEnum, EmailStateEnum, EmailEventEnum } from "src/core/domain/enum";
 import type { InboundEmailInput } from "./inbound-email.request-data";
 
 /** A single attachment that did NOT enter the ingestion, with its domain reason. */
@@ -42,6 +42,8 @@ export class InboundEmailUseCase implements UseCase<InboundEmailInput, InboundEm
         private readonly _emailsRepository: IEmailsRepository,
         private readonly _emailAttachmentsRepository: IEmailAttachmentsRepository,
         private readonly _idGenerator: IIdGenerator,
+        private readonly _emailEventSubscriptionsRepository: IEmailEventSubscriptionsRepository,
+        private readonly _webhookDeliveriesRepository: IWebhookDeliveriesRepository,
     ) { }
 
     public run = async (args: UseCaseArgs<InboundEmailInput>): Promise<InboundEmailResultDTO> => {
@@ -84,6 +86,11 @@ export class InboundEmailUseCase implements UseCase<InboundEmailInput, InboundEm
         });
 
         const attachments = await this.#persistAttachments(created.id_email, data.attachments ?? []);
+
+        // S5 fan-out: every matched ACTIVE subscription gets one queued row
+        // whose stored payload carries ONLY the fields that subscription
+        // enabled; the delivery itself rides the existing scheduler.
+        await this.#fanOutReplyWebhooks(created, parent);
 
         return {
             received: true,
@@ -198,5 +205,85 @@ export class InboundEmailUseCase implements UseCase<InboundEmailInput, InboundEm
         if (typeof value !== 'string') return null;
         const trimmed = value.trim();
         return trimmed === '' ? null : trimmed;
+    }
+
+    /**
+     * Queues one webhook_deliveries row per subscription of the parent's
+     * client that is ACTIVE and subscribing to RECEIVED_REPLY. The stored
+     * payload carries ONLY the fields that subscription enabled; the delivery
+     * itself rides the existing scheduler. A fan-out failure never rejects
+     * the ingestion that already succeeded.
+     */
+    async #fanOutReplyWebhooks(reply: Email, parent: Email | null): Promise<void> {
+        try {
+            if (parent === null || parent.id_client === null) {
+                return;
+            }
+            const subscriptions = await this._emailEventSubscriptionsRepository.findActiveByClientIdAndEvent(
+                parent.id_client,
+                EmailEventEnum.RECEIVED_REPLY,
+            );
+            if (subscriptions.length === 0) {
+                return;
+            }
+            const attachments = await this._emailAttachmentsRepository.findByEmail(reply.id_email);
+
+            for (const subscription of subscriptions) {
+                await this._webhookDeliveriesRepository.create({
+                    id_endpoint: subscription.id_webhook_endpoint,
+                    id_email: reply.id_email,
+                    event: EmailEventEnum.RECEIVED_REPLY,
+                    payload: this.#buildReplyPayload(reply, parent, attachments, subscription),
+                    attempt: 0,
+                    ok: null,
+                    status_code: null,
+                    error: null,
+                    next_retry_at: new Date(),
+                });
+            }
+        } catch {
+            // Fan-out enqueue failure must never break the ingestion outcome.
+        }
+    }
+
+    /**
+     * The webhook notification body (S5): `event`, the reply uuid, the parent
+     * link and `received_at` always travel; sender, recipients (from/to),
+     * dates, body and attachment metadata ONLY when the subscription enables
+     * them. Attachment metadata never includes the binary content.
+     */
+    #buildReplyPayload(reply: Email, parent: Email, attachments: Awaited<ReturnType<IEmailAttachmentsRepository['findByEmail']>>, subscription: { include_body: boolean; include_dates: boolean; include_sender: boolean; include_recipients: boolean; include_attachments: boolean }): string {
+        const receivedAt = reply.created_at;
+        const payload: Record<string, unknown> = {
+            event: EmailEventEnum.RECEIVED_REPLY,
+            email_uuid: reply.email_uuid,
+            parent: {
+                email_uuid: parent.email_uuid,
+                short_code: parent.short_code,
+            },
+            received_at: receivedAt,
+        };
+
+        if (subscription.include_sender) {
+            payload['sender'] = reply.from_email;
+        }
+        if (subscription.include_recipients) {
+            payload['recipients'] = { from: reply.from_email, to: reply.to_email };
+        }
+        if (subscription.include_dates) {
+            payload['dates'] = { sent_at: reply.sent_at, received_at: receivedAt };
+        }
+        if (subscription.include_body) {
+            payload['body'] = { text: reply.body_text ?? null, html: reply.body_html ?? null };
+        }
+        if (subscription.include_attachments) {
+            payload['attachments'] = attachments.map((attachment) => ({
+                filename: attachment.filename,
+                size_bytes: attachment.size_bytes,
+                content_type: attachment.content_type,
+            }));
+        }
+
+        return JSON.stringify(payload);
     }
 }

@@ -11,4 +11,9 @@ export interface IEmailEventSubscriptionsRepository extends IBaseRepository<Emai
     findAllByClientId(idClient: bigint): Promise<EmailEventSubscription[]>;
     /** Active subscriptions only: the fan-out target set for email events. */
     findActiveByClientId(idClient: bigint): Promise<EmailEventSubscription[]>;
+    /**
+     * ACTIVE subscriptions of a client whose comma event list contains the
+     * event: the exact fan-out target set for one ingested email event.
+     */
+    findActiveByClientIdAndEvent(idClient: bigint, event: string): Promise<EmailEventSubscription[]>;
 }
