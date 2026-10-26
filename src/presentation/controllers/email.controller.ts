@@ -2,10 +2,11 @@ import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from "
 import { EmailDetailDTO, EmailListItemDTO, PaginateBaseDTO, SendEmailResultDTO } from "src/core/application/dtos";
 import { GetEmailDetailUseCase } from "src/core/application/use-cases/email/get-email-detail/get-email-detail.usecase";
 import { GetEmailsUseCase } from "src/core/application/use-cases/email/get-emails/get-emails.usecase";
-import { EmailIdParam, GetEmailsRequestData } from "src/core/application/use-cases/email/email.request-data";
+import { DiffuseEmailRequestData, EmailIdParam, GetEmailsRequestData } from "src/core/application/use-cases/email/email.request-data";
 import { RetryEmailUseCase } from "src/core/application/use-cases/email/retry-email/retry-email.usecase";
 import { SendEmailRequestData } from "src/core/application/use-cases/email/send-email/send-email.request-data";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
+import { DiffuseEmailResultDTO, DiffuseEmailUseCase } from "src/core/application/use-cases/email/diffuse-email/diffuse-email.usecase";
 import { ClientResponse } from "src/core/domain/models";
 import { AuthGuard, ConfigurationExistsGuard, EmailAuthGuard } from "src/infrastructure/guards";
 
@@ -17,6 +18,7 @@ export class EmailController {
         private readonly _getEmailDetailUseCase: GetEmailDetailUseCase,
         private readonly _getEmailsUseCase: GetEmailsUseCase,
         private readonly _retryEmailUseCase: RetryEmailUseCase,
+        private readonly _diffuseEmailUseCase: DiffuseEmailUseCase,
     ) { }
 
     @Post('send')
@@ -27,6 +29,17 @@ export class EmailController {
             ok: true,
             message: 'Correo en proceso de envio',
             data: await this._sendEmailUseCase.run({ data: { ...body } })
+        })
+    }
+
+    @Post('diffuse')
+    @HttpCode(200)
+    @UseGuards(ConfigurationExistsGuard)
+    async diffuse(@Body() body: DiffuseEmailRequestData): Promise<ClientResponse<DiffuseEmailResultDTO>> {
+        return new ClientResponse({
+            ok: true,
+            message: 'Correos encolados para difusion',
+            data: await this._diffuseEmailUseCase.run({ data: { ...body } })
         })
     }
 

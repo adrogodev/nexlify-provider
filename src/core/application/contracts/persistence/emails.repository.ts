@@ -18,6 +18,7 @@ export interface IEmailsRepository extends IBaseRepository<Email, 'id_email'> {
     /** email_uuid is DB-side generated (gen_random_uuid): allowed to omit on create. */
     create(entity: Omit<EntityInput<Email, 'id_email'>, 'email_uuid'> & Partial<Pick<Email, 'email_uuid'>>): Promise<Email>;
     findByUuidOrShortCode(identifier: string): Promise<Email | null>;
+    findQueued(limit: number): Promise<Email[]>;
     findRetryable(nextRetryBefore: Date): Promise<Email[]>;
     countSentOn(from: Date, to: Date): Promise<number>;
     getAllWithFilters(filters: GetEmailsFilters): Promise<Email[]>;

@@ -84,6 +84,7 @@ describe('Email read + retry use cases', () => {
     it('RetryDueEmailsUseCase attempts every due email without letting one failure break the batch', async () => {
         const failingAttempt = { attempt: jest.fn(async (id: bigint) => { if (String(id) === '200') throw new Error('boom'); return email; }) };
         const useCase = new RetryDueEmailsUseCase({
+            findQueued: jest.fn(async () => []),
             findRetryable: jest.fn(async () => [{ ...email, id_email: 100n }, { ...email, id_email: 200n }]),
         } as never, failingAttempt as never);
 

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Min, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
 import { EmailStateEnum } from 'src/core/domain/enum';
 
 @ValidatorConstraint({ name: 'email-id', async: false })
@@ -57,3 +57,25 @@ export class EmailIdParam {
     @Validate(EmailIdConstraint)
     emailId: string;
 }
+
+export class DiffuseEmailRequestData {
+    @IsArray()
+    @ArrayMinSize(1)
+    @ArrayMaxSize(500)
+    @IsEmail({}, { each: true })
+    to: string[];
+
+    @IsString()
+    @IsNotEmpty()
+    subject: string;
+
+    @IsOptional()
+    @IsString()
+    html?: string;
+
+    @IsOptional()
+    @IsString()
+    text?: string;
+}
+
+export type DiffuseEmailInput = DiffuseEmailRequestData;

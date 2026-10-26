@@ -22,6 +22,16 @@ export class EmailsRepository extends BaseRepository<Email, 'id_email'> implemen
         });
     }
 
+    public async findQueued(limit: number): Promise<Email[]> {
+        return await this._model.findMany({
+            where: {
+                state: EmailStateEnum.QUEUED,
+            },
+            orderBy: { id_email: 'asc' },
+            take: limit,
+        });
+    }
+
     public async findRetryable(nextRetryBefore: Date): Promise<Email[]> {
         return await this._model.findMany({
             where: {
