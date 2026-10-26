@@ -7,9 +7,9 @@ import { RetryEmailUseCase } from "src/core/application/use-cases/email/retry-em
 import { SendEmailRequestData } from "src/core/application/use-cases/email/send-email/send-email.request-data";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
 import { ClientResponse } from "src/core/domain/models";
-import { AuthGuard, ConfigurationExistsGuard } from "src/infrastructure/guards";
+import { AuthGuard, ConfigurationExistsGuard, EmailAuthGuard } from "src/infrastructure/guards";
 
-@UseGuards(AuthGuard)
+@UseGuards(EmailAuthGuard)
 @Controller('api/email')
 export class EmailController {
     constructor(

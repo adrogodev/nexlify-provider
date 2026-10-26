@@ -15,4 +15,24 @@ export class NexlifyKeysRepository extends BaseRepository<NexlifyKeys, 'id_nexli
             where: { id_client: id }
         })
     }
+
+    public async findActiveByHashedKey(hashedKey: string): Promise<NexlifyKeys | null> {
+        return await this._model.findFirst({
+            where: { api_key: hashedKey, state: true }
+        })
+    }
+
+    public async findActiveByClientId(id_client: bigint): Promise<Nullable<NexlifyKeys[]>> {
+        return await this._model.findMany({
+            where: { id_client, state: true }
+        })
+    }
+
+    public async deactivateAllByClientId(id_client: bigint): Promise<number> {
+        const result = await this._model.updateMany({
+            where: { id_client, state: true },
+            data: { state: false, updated_at: new Date() }
+        })
+        return result.count
+    }
 }

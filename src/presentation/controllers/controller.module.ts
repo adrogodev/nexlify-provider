@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, ID_GENERATOR, JWT_GENERATOR, PASSWORD_HASHER, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
 import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
+import { GenerateNexlifyKeyUseCase, ListMyNexlifyKeysUseCase, RevokeNexlifyKeyUseCase } from "src/core/application/use-cases/nexlify-keys";
 import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-cases/admin-user";
 import { AssignCredentialsUseCase, ClientDataUseCase, GetAllClientsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
@@ -22,12 +23,13 @@ import { ClientContoller } from "./client.controller";
 import { EmailController } from "./email.controller";
 import { NexlifyConfigurationController } from "./nexlify-configuration.controller";
 import { SmtpServerController } from "./smtp-server.controller";
-import { AuthGuard, ConfigurationExistsGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
+import { AuthGuard, ConfigurationExistsGuard, EmailAuthGuard, SmtpServerExistsGuard, ApiKeyGuard } from "src/infrastructure/guards";
 import { TEMPLATE_SERVICE } from "src/core/application/contracts/services/template.service";
 import { VerifyCredentialAssignmentTokenUseCase } from "src/core/application/use-cases/verify";
 import { VerifyController } from "./verify.controller";
 import { IdTypesUseCase } from "src/core/application/use-cases/master";
 import { MasterController } from "./master.controller";
+import { NexlifyKeysController } from "./nexlify-keys.controller";
 
 @Module({
     imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
@@ -38,12 +40,38 @@ import { MasterController } from "./master.controller";
         EmailController,
         NexlifyConfigurationController,
         VerifyController,
-        MasterController
+        MasterController,
+        NexlifyKeysController
     ],
     providers: [
         AuthGuard,
+        {
+            provide: ApiKeyGuard,
+            useFactory: (keysRepo, hashGen) => new ApiKeyGuard(keysRepo, hashGen),
+            inject: [NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR]
+        },
+        {
+            provide: EmailAuthGuard,
+            useFactory: (apiKeyGuard, authGuard) => new EmailAuthGuard(apiKeyGuard, authGuard),
+            inject: [ApiKeyGuard, AuthGuard]
+        },
         ConfigurationExistsGuard,
         SmtpServerExistsGuard,
+        {
+            provide: GenerateNexlifyKeyUseCase,
+            useFactory: (context, keysRepo, hashGen) => new GenerateNexlifyKeyUseCase(context, keysRepo, hashGen),
+            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR]
+        },
+        {
+            provide: ListMyNexlifyKeysUseCase,
+            useFactory: (context, keysRepo) => new ListMyNexlifyKeysUseCase(context, keysRepo),
+            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY]
+        },
+        {
+            provide: RevokeNexlifyKeyUseCase,
+            useFactory: (context, keysRepo) => new RevokeNexlifyKeyUseCase(context, keysRepo),
+            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY]
+        },
         {
             provide: RegisterClientUseCase,
             useFactory: (repo, credsRepo, jwtGen, encryptor, configRepo, smtpRepo, tmpService, mailerService, appConfig) => new RegisterClientUseCase(repo, credsRepo, jwtGen, encryptor, configRepo, smtpRepo, tmpService, mailerService, appConfig),

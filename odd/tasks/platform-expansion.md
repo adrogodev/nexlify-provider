@@ -26,7 +26,7 @@ Test runner: `pnpm test` (colocated specs) + `pnpm test:e2e`. DB still down at `
 
 | ID | Spec | Route | Commit |
 |----|------|-------|--------|
-| T1 | S1 | inline | pending |
+| T1 | S1 | inline | 10b3e75 feat(platform): uuid v4 generado por base de datos con gen_random_uuid |
 | T2 | S2 | inline | pending |
 | T3 | S3 | inline | pending |
 | T4 | S4 | delegated | pending |
