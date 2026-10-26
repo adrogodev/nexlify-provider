@@ -9,3 +9,4 @@ export * from './nexlify-configuration.repository';
 export * from './smtp-server.repository';
 export * from './nexlify-keys.repository';
 export * from './nexlify-keys-logs.repository';
+export * from './users.repository';

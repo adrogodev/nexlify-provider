@@ -30,6 +30,9 @@ import { VerifyController } from "./verify.controller";
 import { IdTypesUseCase } from "src/core/application/use-cases/master";
 import { MasterController } from "./master.controller";
 import { NexlifyKeysController } from "./nexlify-keys.controller";
+import { UsersController } from "./users.controller";
+import { CreateUserUseCase, GetUsersUseCase, UpdateUserUseCase } from "src/core/application/use-cases/users";
+import { USERS_REPOSITORY } from "src/core/application/contracts/persistence";
 
 @Module({
     imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
@@ -41,7 +44,8 @@ import { NexlifyKeysController } from "./nexlify-keys.controller";
         NexlifyConfigurationController,
         VerifyController,
         MasterController,
-        NexlifyKeysController
+        NexlifyKeysController,
+        UsersController
     ],
     providers: [
         AuthGuard,
@@ -172,6 +176,21 @@ import { NexlifyKeysController } from "./nexlify-keys.controller";
             provide: IdTypesUseCase,
             useFactory: (repo) => new IdTypesUseCase(repo),
             inject: [ID_TYPE_REPOSITORY]
+        },
+        {
+            provide: CreateUserUseCase,
+            useFactory: (context, usersRepo) => new CreateUserUseCase(context, usersRepo),
+            inject: [REQUEST_CONTEXT, USERS_REPOSITORY]
+        },
+        {
+            provide: GetUsersUseCase,
+            useFactory: (context, usersRepo) => new GetUsersUseCase(context, usersRepo),
+            inject: [REQUEST_CONTEXT, USERS_REPOSITORY]
+        },
+        {
+            provide: UpdateUserUseCase,
+            useFactory: (context, usersRepo) => new UpdateUserUseCase(context, usersRepo),
+            inject: [REQUEST_CONTEXT, USERS_REPOSITORY]
         }
 
     ]
