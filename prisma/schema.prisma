@@ -154,3 +154,50 @@ model id_types {
   created_at  DateTime? @default(now()) @db.Timestamptz(6)
   updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 }
+
+enum EmailState {
+  QUEUED
+  SENDING
+  SENT
+  WARNING
+  FAILED
+  RETRYING
+}
+
+enum EmailLogLevel {
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model emails {
+  id_email    BigInt     @id @default(autoincrement())
+  email_uuid  String     @unique @db.Uuid
+  short_code  String     @unique @db.VarChar(20)
+  id_client   BigInt?
+  from_email  String     @db.VarChar(255)
+  to_email    String     @db.VarChar(1000)
+  subject     String     @db.VarChar(255)
+  body_html   String?
+  body_text   String?
+  state       EmailState @default(QUEUED)
+  attempts    Int        @default(0)
+  next_retry_at DateTime?
+  sent_at     DateTime?
+  created_at  DateTime?  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime?  @default(now()) @db.Timestamptz(6)
+
+  @@index([state, next_retry_at])
+}
+
+model email_send_logs {
+  id_log     BigInt        @id @default(autoincrement())
+  id_email   BigInt
+  attempt    Int
+  level      EmailLogLevel
+  message    String
+  smtp_host  String?       @db.VarChar(255)
+  created_at DateTime?     @default(now()) @db.Timestamptz(6)
+
+  @@index([id_email])
+}
