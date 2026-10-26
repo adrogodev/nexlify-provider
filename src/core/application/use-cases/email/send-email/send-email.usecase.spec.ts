@@ -1,73 +1,80 @@
 import { SendEmailUseCase } from './send-email.usecase';
+import { SendEmailInput } from './send-email.request-data';
 
 describe('SendEmailUseCase', () => {
-    const configuration = {
+    const config = {
         id_configuration: 1n,
         sender_email: 'sender@nexlify.local',
-        sender_name: 'Nexlify',
-        mail_application_password: 'app-password',
         id_smtp_server: 5n,
+        daily_send_limit: 500,
     };
 
-    const smtpServer = {
-        id_smpt_server: 5n,
-        host: 'smtp.nexlify.local',
-        port: 587,
-        auth_type: 'basic',
-        state: true,
+    const createdEmail = {
+        id_email: 100n,
+        email_uuid: '11111111-2222-4333-8444-555555555555',
+        short_code: 'NX-AAAAAA1',
+        state: 'SENT',
+        attempts: 1,
     };
 
-    const mailer = { send: jest.fn(async () => true) } as never;
-
-    const makeUseCase = (config: unknown, server: unknown) => {
-        const configRepo = { findConfiguration: jest.fn(async () => config) } as never;
-        const smtpRepo = { getByIdAsync: jest.fn(async () => server) } as never;
-        return new SendEmailUseCase(configRepo, smtpRepo, mailer);
+    const build = (overrides?: { config?: unknown; sentToday?: number; attemptResult?: unknown }) => {
+        const cfg = overrides?.config !== undefined ? overrides.config : config;
+        const emailsRepo = {
+            create: jest.fn(async (data: unknown) => ({ ...createdEmail, ...data })),
+            countSentOn: jest.fn(async () => overrides?.sentToday ?? 0),
+        } as never;
+        const configRepo = { findConfiguration: jest.fn(async () => cfg) } as never;
+        const attempt = { attempt: jest.fn(async () => overrides?.attemptResult ?? { state: 'SENT', attempts: 1 }) } as never;
+        const idGen = { generateUuid: () => createdEmail.email_uuid, generateShortCode: () => createdEmail.short_code } as never;
+        const useCase = new SendEmailUseCase(configRepo, emailsRepo, attempt, idGen);
+        return { useCase, emailsRepo: emailsRepo as unknown as { create: jest.Mock; countSentOn: jest.Mock }, attempt: (attempt as unknown as { attempt: jest.Mock }).attempt };
     };
 
-    const input = {
-        from: 'sender@nexlify.local',
+    const input: SendEmailInput = {
+        from: 'origen@test.local',
         to: 'dest@test.local',
         subject: 'Hola',
         text: 'mensaje',
-    };
+    } as never as SendEmailInput;
 
-    it('throws when no platform configuration exists', async () => {
-        const useCase = makeUseCase(null, smtpServer);
-        await expect(useCase.run({ data: input } as never)).rejects.toThrow(/configuraci/i);
+    it('persists the email as QUEUED with uuid and short code before sending', async () => {
+        const { useCase, emailsRepo, attempt } = build();
+
+        await useCase.run({ data: input });
+
+        expect(emailsRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+            email_uuid: createdEmail.email_uuid,
+            short_code: createdEmail.short_code,
+            state: 'QUEUED',
+            attempts: 0,
+            from_email: input.from,
+            to_email: input.to,
+            subject: input.subject,
+        }));
+        expect(attempt).toHaveBeenCalledWith(100n);
     });
 
-    it('throws when the configuration has no SMTP server linked', async () => {
-        const useCase = makeUseCase({ ...configuration, id_smtp_server: null }, smtpServer);
-        await expect(useCase.run({ data: input } as never)).rejects.toThrow(/configura/i);
-    });
+    it('returns the public identifiers and final state', async () => {
+        const { useCase } = build();
 
-    it('throws when the linked SMTP server does not exist', async () => {
-        const useCase = makeUseCase(configuration, null);
-        await expect(useCase.run({ data: input } as never)).rejects.toThrow(/configura/i);
-    });
+        const result = await useCase.run({ data: input });
 
-    it('sends email using SMTP credentials from the global configuration', async () => {
-        const useCase = makeUseCase(configuration, smtpServer);
-
-        const result = await useCase.run({ data: input } as never);
-
-        expect(result).toBe(true);
-        expect((mailer.send as unknown as jest.Mock).mock.calls[0][0].transporter).toEqual({
-            host: 'smtp.nexlify.local',
-            port: 587,
-            secure: false,
-            user: 'sender@nexlify.local',
-            password: 'app-password',
+        expect(result).toEqual({
+            email_uuid: createdEmail.email_uuid,
+            short_code: createdEmail.short_code,
+            state: 'SENT',
+            attempts: 1,
         });
     });
 
-    it('reports failure when the mail service cannot deliver', async () => {
-        (mailer.send as unknown as jest.Mock).mockImplementationOnce(async () => false);
-        const useCase = makeUseCase(configuration, smtpServer);
+    it('throws when no configuration exists', async () => {
+        const { useCase } = build({ config: null });
+        await expect(useCase.run({ data: input })).rejects.toThrow(/configura/i);
+    });
 
-        const result = await useCase.run({ data: input } as never);
-
-        expect(result).toBe(false);
+    it('throws never-persisted checks when the daily send limit is reached', async () => {
+        const { useCase, emailsRepo } = build({ sentToday: 500 });
+        await expect(useCase.run({ data: input })).rejects.toThrow(/limite|daily/i);
+        expect(emailsRepo.create).not.toHaveBeenCalled();
     });
 });

@@ -3,13 +3,13 @@ import { Injectable } from "@nestjs/common";
 import { Transporter } from "nodemailer";
 import * as nodemailer from "nodemailer";
 import * as env from "env-var";
-import { IMailerService, MailerPayload } from "src/core/application/contracts/services";
+import { IMailerService, MailerPayload, MailerResult } from "src/core/application/contracts/services";
 import { TransporterData } from "src/core/domain/models";
 
 @Injectable()
 export class MailerService implements IMailerService {
 
-    public send = async (payload: MailerPayload): Promise<boolean> => {
+    public send = async (payload: MailerPayload): Promise<MailerResult> => {
         try {
             const transporter = await this.#getTransporter(payload.transporter);
             const { ...data } = payload.email;
@@ -23,11 +23,12 @@ export class MailerService implements IMailerService {
                 attachments: data.attachments
             })
 
-            return true;
+            return { ok: true, message: 'Correo enviado con exito' };
 
         } catch (error) {
-            colors.error(`Ha ocurrido un error al enviar: ${error}`, { dateShow: false });
-            return false;
+            const message = `Ha ocurrido un error al enviar: ${error}`;
+            colors.error(message, { dateShow: false });
+            return { ok: false, message };
         }
     }
 

@@ -1,10 +1,11 @@
 import { Module } from "@nestjs/common";
-import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR, PASSWORD_HASHER, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
-import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
+import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, ID_GENERATOR, JWT_GENERATOR, PASSWORD_HASHER, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
+import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
 import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-cases/admin-user";
 import { AssignCredentialsUseCase, ClientDataUseCase, GetAllClientsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
+import { EmailAttemptService } from "src/core/application/use-cases/email/services/email-attempt.service";
 import { AddNexlifyConfigurationUseCase, GetNexlifyConfigurationUseCase, UpdateNexlifyConfigurationUseCase } from "src/core/application/use-cases/nexlify-configuration";
 import { AddSmtpServerUseCase } from "src/core/application/use-cases/smtp-server";
 import { HelpersModule } from "src/infrastructure/helpers/helpers.module";
@@ -60,9 +61,14 @@ import { MasterController } from "./master.controller";
 
         },
         {
+            provide: EmailAttemptService,
+            useFactory: (configRepo, smtpRepo, emailsRepo, logsRepo, service) => new EmailAttemptService(configRepo, smtpRepo, emailsRepo, logsRepo, service),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, EMAILS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, MAILER_SERVICE]
+        },
+        {
             provide: SendEmailUseCase,
-            useFactory: (configRepo, smtpRepo, service) => new SendEmailUseCase(configRepo, smtpRepo, service),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, MAILER_SERVICE]
+            useFactory: (configRepo, emailsRepo, attemptService, idGen) => new SendEmailUseCase(configRepo, emailsRepo, attemptService, idGen),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, EMAILS_REPOSITORY, EmailAttemptService, ID_GENERATOR]
         },
         {
             provide: AddNexlifyConfigurationUseCase,
