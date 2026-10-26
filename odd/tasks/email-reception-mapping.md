@@ -29,16 +29,25 @@ Test runner: `pnpm test` + `pnpm test:e2e`. DB still down: `prisma validate`/`ge
 
 | ID | Spec | Route | Commit |
 |----|------|-------|--------|
-| T1 | S1 | delegated (worker) | pending |
-| T2 | S2 | delegated (worker) | pending |
-| T3 | S3 | delegated (worker) | pending |
-| T4 | S4 | delegated (worker) | pending-parent-commit |
-| T5 | S5 | delegated (worker) | pending-parent-commit |
-| T6 | S6 | delegated (worker) | pending-parent-commit |
-| T7 | S7 | inline (parent) | pending |
+| T1 | S1 | delegated (worker) + parent fixes | 48221b0 |
+| T2 | S2 | delegated (worker) | 48221b0 |
+| T3 | S3 | delegated (worker) + parent controller/wiring | 48221b0 |
+| T4 | S4 | delegated (worker) | dc1d9ef |
+| T5 | S5 | delegated (worker) | dc1d9ef |
+| T6 | S6 | delegated (worker) | dc1d9ef |
+| T7 | S7 | inline (parent) | cierre (README + verificacion) |
 
 ## Log
 
 - L1 (2026-10-26) — Original request verbatim: "Bien, ahora quiero que basado en todo el análisis que haz hecho del sistema que sea capaz de analizar y mapear tanto los emails que se envían como lo que son respondidos al correo mapeado y que hayan algunos eventos para habilitar lo que se quiere recibir, como por ejemplo: solo el cuerpo de correo, fechas de envió o respuesta del correo, quien lo recibe, quien lo envía, archivos adjuntos en el correo, entre otros detalles que consideres." — after the architecture question the user chose **Inbound webhook** (provider-agnostic POST ingestion) as the reception mechanism.
 - L2 (2026-10-26) — Standing rule from the user (uuid): uuid v4 ONLY from the database (`gen_random_uuid()`); short codes and secret/jti plain strings are the only legitimate code-side ids.
-- L3 (2026-10-26) — T4–T6 (S4/S5/S6) implemented: `EmailEventEnum` subscriptions management (create/get-my/update + controller), inbound fan-out enqueueing one `webhook_deliveries` row per matched ACTIVE subscription, and the S6 read side (detail direction/parent/attachments metadata + `GET api/email/:emailId/attachments/:index`). The field-gated payload needed a `payload String? @db.Text` column in `webhook_deliveries` and a scheduler branch (stored payload POSTed verbatim; rows without one keep the exact generic delivery-status shape) — surfaces explicitly extended by user approval option 1 (worker could not edit schema/scheduler otherwise); `pnpm prisma generate` ran offline. Verification: `pnpm test -- --runInBand` 27 suites / 185 tests passed, `pnpm test:e2e` 1 suite / 8 tests passed, `pnpm build` exit 0. DB migration still pending; nothing committed (parent owns git).
+- L3 (2026-10-26) — T1–T3 closing notes (parent): the first batch worker stopped with interaction_required (RECEIVED state vs. S1 literal list, derived files, missing env secret); the user approved all three. The resumed worker died mid-T3 leaving no text; the parent finished the remainder inline (inbound controller + DI registration + EnvVar e2e fix). During that inline fix the parent corrupted the local `.env` formatting (the worker had appended `INBOUND_WEBHOOK_SECRET` without a newline); rebuilt cleanly — NOTE: the `ENCRYPT_KEY` value was restored from console history and ONE byte may differ from the original (it printed as mojibake); impact is limited to encrypted session tokens persisted in the dev DB — re-login resolves, regenerate if decryption errors appear. Both `.env` and `.env.example` now carry the documented keys. Verification after fixes: 154 unit + 8 e2e + build clean at commit 48221b0.
+- L4 (2026-10-26) — T4–T6 (S4/S5/S6) implemented: `EmailEventEnum` subscriptions management (create/get-my/update + controller), inbound fan-out enqueueing one `webhook_deliveries` row per matched ACTIVE subscription, and the S6 read side (detail direction/parent/attachments metadata + `GET api/email/:emailId/attachments/:index`). The field-gated payload needed a `payload String? @db.Text` column in `webhook_deliveries` and a scheduler branch (stored payload POSTed verbatim; rows without one keep the exact generic delivery-status shape) — surfaces explicitly extended by user approval option 1 (worker could not edit schema/scheduler otherwise); `pnpm prisma generate` ran offline. Verification: `pnpm test -- --runInBand` 27 suites / 185 tests passed, `pnpm test:e2e` 1 suite / 8 tests passed, `pnpm build` exit 0. DB migration still pending; nothing committed (parent owns git).
+- L5 (2026-10-26) — Parent commit slicing: `48221b0` (T1–T3) + `dc1d9ef` (T4–T6 incl. approved payload column + scheduler branch); final battery confirmed: 185 unit + 8 e2e + build exit 0.
+- Risk lines:
+  - S1: Risk: item 1 (schema additions; migración pendiente con su DB).
+  - S2: Risk: item 3 (MailerResult contrato extendido con messageId).
+  - S3: Risk: item 2 (endpoint público firmado por HMAC; fail-closed sobre secret).
+  - S4: Risk: item 3 (nuevos endpoints + validación de eventos/campos).
+  - S5: Risk: item 3 (columna payload + branch del scheduler: retro-compatible, shape genérico PRESERVE-testeado).
+  - S6: Risk: item 2/3 (descarga de adjuntos por auth; metadata sin contenido en webhooks).

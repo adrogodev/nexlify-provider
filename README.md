@@ -79,6 +79,11 @@ When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` ro
 | POST | `api/webhooks` | EmailAuthGuard | Register a delivery-status webhook for the calling client (secret returned once) |
 | GET | `api/webhooks/my` | EmailAuthGuard | List own webhook endpoints (secret never exposed) |
 | PUT | `api/webhooks/:endpointUuid` | EmailAuthGuard | Update url / active toggle (uuid DB-side) |
+| POST | `api/email/inbound` | Firma HMAC (INBOUND_WEBHOOK_SECRET) | Ingestión de respuestas: threading por In-Reply-To/References, adjuntos ≤5MB, idempotente |
+| POST | `api/email-events/subscriptions` | EmailAuthGuard | Subscribe a eventos (RECEIVED_REPLY) eligiendo campos: body/dates/sender/recipients/attachments |
+| GET | `api/email-events/subscriptions/my` | EmailAuthGuard | Suscripciones del cliente (admin ve todas) |
+| PUT | `api/email-events/subscriptions/:subscriptionUuid` | EmailAuthGuard | Actualiza eventos/campos/estado |
+| GET | `api/email/:emailId/attachments/:index` | EmailAuthGuard | Descarga base64 de un adjunto |
 | POST | `api/nexlify-keys/generate` | AuthGuard | Generate a client API key (raw key returned once) |
 | GET | `api/nexlify-keys/my` | AuthGuard | List the calling client's API keys (masked) |
 | PUT | `api/nexlify-keys/:id/revoke` | AuthGuard | Revoke an API key |
@@ -102,6 +107,17 @@ When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` ro
 ## Authentication model
 
 `AuthGuard` + `AuthenticatedUserSecurity` implement **dual authentication**: the Bearer token is resolved against either `clients` (state `ACTIVO`) or `admin_user` (`is_active`), and the IP embedded in the token must match the request IP. Session context is exposed through `AsyncLocalStorage` (`ContextInterceptor`) and consumed by the `*/data` use cases.
+
+### Reception of replies (inbound mapping)
+
+```mermaid-text
+POST api/email/inbound  →  HMAC verify (INBOUND_WEBHOOK_SECRET)  →  thread reply
+```
+
+- Every successful send persists the SMTP `Message-ID` in `emails.message_id`; replies that arrive with `In-Reply-To` / `References` matching it are created as `RECEIVED` rows linked via `parent_email_id` (direction enum SENT/RECEIVED). Unmatchable messages are stored standalone (admin-visible). Ingestion is idempotent per `message_id`.
+- `POST api/email/inbound` is PUBLIC but signed: `X-Nexlify-Inbound-Signature` = HMAC-SHA256 hex of the raw body using `INBOUND_WEBHOOK_SECRET` (required env; add it to your `.env`). Design your provider (Mailgun, SendGrid, Postmark, Cloudflare Email Routing) to forward the parsed fields: `{ sender, message_id, in_reply_to_message_id, references, subject, body_text, body_html, received_at, attachments[{filename,contentType,size,content(base64)}] }` — attachments > 5MB are rejected per-item without aborting.
+- `email_event_subscriptions` lets each client choose what to receive through its webhook endpoint: `RECEIVED_REPLY` events gated field-by-field (`include_body`, `include_dates`, `include_sender`, `include_recipients`, `include_attachments` — metadata only; binary never travels in webhooks). The delivery scheduler posts the stored payload signed as usual.
+- Downloads: `GET api/email/:emailId/attachments/:index` (dual auth) returns the base64 attachment.
 
 ## Tests
 
