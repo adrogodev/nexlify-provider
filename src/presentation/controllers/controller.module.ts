@@ -5,6 +5,10 @@ import { GenerateNexlifyKeyUseCase, ListMyNexlifyKeysUseCase, RevokeNexlifyKeyUs
 import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-cases/admin-user";
 import { AssignCredentialsUseCase, ClientDataUseCase, GetAllClientsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
+import { UpdateClientUseCase } from "src/core/application/use-cases/clients/update-client";
+import { UpdateClientStateUseCase } from "src/core/application/use-cases/clients/update-client-state";
+import { ForgotPasswordUseCase } from "src/core/application/use-cases/clients/forgot-password";
+import { ResetPasswordUseCase } from "src/core/application/use-cases/clients/reset-password";
 import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
 import { EmailAttemptService } from "src/core/application/use-cases/email/services/email-attempt.service";
 import { GetEmailDetailUseCase } from "src/core/application/use-cases/email/get-email-detail/get-email-detail.usecase";
@@ -171,6 +175,26 @@ import { USERS_REPOSITORY } from "src/core/application/contracts/persistence";
             provide: GetAllClientsUseCase,
             useFactory: (repo, idTypeRepo) => new GetAllClientsUseCase(repo, idTypeRepo),
             inject: [CLIENT_REPOSITORY, ID_TYPE_REPOSITORY]
+        },
+        {
+            provide: UpdateClientUseCase,
+            useFactory: (context, cliRepo) => new UpdateClientUseCase(context, cliRepo),
+            inject: [REQUEST_CONTEXT, CLIENT_REPOSITORY]
+        },
+        {
+            provide: UpdateClientStateUseCase,
+            useFactory: (context, cliRepo) => new UpdateClientStateUseCase(context, cliRepo),
+            inject: [REQUEST_CONTEXT, CLIENT_REPOSITORY]
+        },
+        {
+            provide: ForgotPasswordUseCase,
+            useFactory: (credsRepo, cliRepo, jwtGen, encryptor, configRepo, smtpRepo, mailerService, appConfig) => new ForgotPasswordUseCase(credsRepo, cliRepo, jwtGen, encryptor, configRepo, smtpRepo, mailerService, appConfig),
+            inject: [CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, JWT_GENERATOR, ENCRYPTER, NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, MAILER_SERVICE, APP_CONFIG]
+        },
+        {
+            provide: ResetPasswordUseCase,
+            useFactory: (encryptor, jwtGen, passHasher, credsRepo, appConfig) => new ResetPasswordUseCase(encryptor, jwtGen, passHasher, credsRepo, appConfig),
+            inject: [ENCRYPTER, JWT_GENERATOR, PASSWORD_HASHER, CLIENT_CREDENTIALS_REPOSITORY, APP_CONFIG]
         },
         {
             provide: IdTypesUseCase,

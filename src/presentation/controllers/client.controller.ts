@@ -1,7 +1,11 @@
-import { Body, Controller, Get, Headers, HttpCode, Ip, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpCode, Ip, Post, Put, Query, UseGuards, UseInterceptors } from "@nestjs/common";
 import { AllClientsInfoDTO, AuthDto, ClientDataDTO, PaginateBaseDTO } from "src/core/application/dtos";
 import { AssignCredentialsRequestData, AssignCredentialsUseCase, ClientDataUseCase, GetAllClientRequestData, GetAllClientsUseCase, SignInRequestData, SignInUseCase } from "src/core/application/use-cases/clients";
 import { RegisterClientRequestData, RegisterClientUseCase } from "src/core/application/use-cases/clients/register-client";
+import { UpdateClientRequestData, UpdateClientUseCase } from "src/core/application/use-cases/clients/update-client";
+import { UpdateClientStateRequestData, UpdateClientStateUseCase } from "src/core/application/use-cases/clients/update-client-state";
+import { ForgotPasswordRequestData, ForgotPasswordUseCase } from "src/core/application/use-cases/clients/forgot-password";
+import { ResetPasswordRequestData, ResetPasswordUseCase } from "src/core/application/use-cases/clients/reset-password";
 import { ClientResponse } from "src/core/domain/models";
 import { AuthGuard, SmtpServerExistsGuard } from "src/infrastructure/guards";
 import { ContextInterceptor } from "src/infrastructure/interceptors/context.interceptor";
@@ -13,7 +17,11 @@ export class ClientContoller {
         private readonly _assignCredentialsUseCase: AssignCredentialsUseCase,
         private readonly _signInUseCase: SignInUseCase,
         private readonly _getAllClientUseCase: GetAllClientsUseCase,
-        private readonly _clientDataUseCase: ClientDataUseCase
+        private readonly _clientDataUseCase: ClientDataUseCase,
+        private readonly _updateClientUseCase: UpdateClientUseCase,
+        private readonly _updateClientStateUseCase: UpdateClientStateUseCase,
+        private readonly _forgotPasswordUseCase: ForgotPasswordUseCase,
+        private readonly _resetPasswordUseCase: ResetPasswordUseCase,
     ) { }
 
     @Post('register')
@@ -70,6 +78,56 @@ export class ClientContoller {
             ok: true,
             message: 'Datos de sesion obtenidos existosamente',
             data: await this._clientDataUseCase.run({ data: null })
+        });
+    }
+
+    @UseInterceptors(ContextInterceptor)
+    @UseGuards(AuthGuard)
+    @Put('update')
+    @HttpCode(200)
+    async updateClient(@Body() body: UpdateClientRequestData): Promise<ClientResponse<boolean>> {
+        await this._updateClientUseCase.run({ data: { ...body } });
+        return new ClientResponse({
+            ok: true,
+            message: 'Informacion del cliente actualizada exitosamente',
+            data: null
+        });
+    }
+
+    @UseInterceptors(ContextInterceptor)
+    @UseGuards(AuthGuard)
+    @Put('state')
+    @HttpCode(200)
+    async updateClientState(@Body() body: UpdateClientStateRequestData): Promise<ClientResponse<boolean>> {
+        await this._updateClientStateUseCase.run({ data: { ...body } });
+        return new ClientResponse({
+            ok: true,
+            message: 'Estado del cliente actualizado exitosamente',
+            data: null
+        });
+    }
+
+    // Public recovery flow: the response is always generic and never discloses
+    // whether the username exists.
+    @Post('forgot-password')
+    @HttpCode(200)
+    async forgotPassword(@Body() body: ForgotPasswordRequestData): Promise<ClientResponse<boolean>> {
+        await this._forgotPasswordUseCase.run({ data: { ...body } });
+        return new ClientResponse({
+            ok: true,
+            message: 'Si el usuario existe se enviara un email',
+            data: null
+        });
+    }
+
+    @Post('reset-password')
+    @HttpCode(200)
+    async resetPassword(@Body() body: ResetPasswordRequestData): Promise<ClientResponse<boolean>> {
+        await this._resetPasswordUseCase.run({ data: { ...body } });
+        return new ClientResponse({
+            ok: true,
+            message: 'Contraseña restablecida exitosamente',
+            data: null
         });
     }
 }
