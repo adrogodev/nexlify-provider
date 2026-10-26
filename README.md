@@ -36,9 +36,9 @@ Required (see `.env.example`):
 >
 > UUID identifiers (`emails.email_uuid`, `templates.id_template`) are generated **by the database** with `gen_random_uuid()` (Prisma `@default(dbgenerated(...))`); the code never emits a v4 uuid except for the password-recovery jti. `gen_random_uuid()` is built-in for PostgreSQL ≥ 13; add `CREATE EXTENSION IF NOT EXISTS pgcrypto;` for older versions.
 
-## Data model (13 tables)
+## Data model (15 tables)
 
-`admin_user` (platform admins) · `clients` (companies/persons) · `client_credentials` (login, encrypted `auth_token`/`recovery_token`) · `nexlify_keys` (SHA-256 hashed client API keys) · `nexlify_keys_logs` (API key audit) · `smtp_servers` (SMTP provider catalog) · `diffusion_information` (per-client mail credentials) · `templates` · `users` (end-users of a client) · `nexlify_configuration` (singleton: sender identity, SMTP credentials, send limits, email header/footer) · `id_types` (identification document catalog) · `emails` (persistent delivery records) · `email_send_logs` (per-attempt audit).
+`admin_user` (platform admins) · `clients` (companies/persons) · `client_credentials` (login, encrypted `auth_token`/`recovery_token`) · `nexlify_keys` (SHA-256 hashed client API keys) · `nexlify_keys_logs` (API key audit) · `smtp_servers` (SMTP provider catalog) · `diffusion_information` (per-client mail credentials) · `templates` · `users` (end-users of a client) · `nexlify_configuration` (singleton: sender identity, SMTP credentials, send limits, email header/footer) · `id_types` (identification document catalog) · `emails` (persistent delivery records) · `email_send_logs` (per-attempt audit) · `webhook_endpoints` (client delivery-status receivers) · `webhook_deliveries` (signed webhook attempts).
 
 Password hashing: bcrypt (cost 12). Legacy unsalted SHA-256 hashes are still accepted for backwards compatibility and are upgraded to bcrypt automatically on the next successful login.
 
@@ -50,7 +50,11 @@ Every send is a persistent record with three identifiers:
 - `email_uuid` (UUID v4) — public API identifier.
 - `short_code` (`NX-XXXXXXX`, base62) — human reference for UI/log search.
 
-States: `QUEUED → SENDING → SENT | WARNING | RETRYING → FAILED`. Every attempt writes an `email_send_logs` row with level `SUCCESS` (first-attempt success), `WARNING` (success after retries) or `ERROR` (failure), the SMTP host used and the message. `nexlify_configuration.daily_send_limit` caps sends per day; `max_retries` and `retry_interval_seconds` drive the retry machine. A scheduler (`EmailRetryScheduler`, every 30s) re-sends due `RETRYING` emails; a failed batch never stops the rest.
+States: `QUEUED → SENDING → SENT | WARNING | FAILED → RETRYING` (a QUEUED record is consumed by the queue-driven tick; a FAILED record enters the retry machine). Every attempt writes an `email_send_logs` row with level `SUCCESS` (first-attempt success), `WARNING` (success after retries) or `ERROR` (failure), the SMTP host used and the message. `nexlify_configuration.daily_send_limit` caps sends per day; `max_retries` and `retry_interval_seconds` drive the retry machine. A scheduler (`EmailRetryScheduler`, every 30s) processes the queue FIFO (`QUEUED` first, then due `RETRYING`), capped by the remaining daily budget; a failed batch never stops the rest.
+
+### Delivery-status webhooks
+
+When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` row is enqueued per active `webhook_endpoints` row of that client. A scheduler (`WebhookDeliveryScheduler`, 30s) POSTs `{ event, email_uuid, short_code, attempts, subject, to_email, sent_at }` with `X-Nexlify-Event`, `X-Nexlify-Delivery` and `X-Nexlify-Signature` (HMAC-SHA256 hex of the exact serialized body, using the endpoint secret that is returned exactly once at registration). 2xx delivers; otherwise retry every `60s × attempt`, max 3 attempts, then give up recording `ok=false`.
 
 - Authentication model: `api/email/**` accepts **X-API-Key** (client programmatic access, SHA-256 hashed keys, `nexlify_keys`) *or* the bearer JWT; every other endpoint uses pure JWT. See the endpoint table above.
 - To create the new tables run `pnpm prisma migrate dev --name email_pipeline` (or `pnpm prisma db push`) with the database up.
@@ -71,6 +75,10 @@ States: `QUEUED → SENDING → SENT | WARNING | RETRYING → FAILED`. Every att
 | GET | `api/email` | EmailAuthGuard | List delivery records (filters: state, client, dates, short_code; paginated) |
 | GET | `api/email/:emailId` | EmailAuthGuard | Email detail with full attempt log history (`emailId` = uuid or short code) |
 | POST | `api/email/:emailId/retry` | EmailAuthGuard, ConfigurationExistsGuard | Retry one specific delivery in one click |
+| POST | `api/email/diffuse` | EmailAuthGuard, ConfigurationExistsGuard | Bulk send 1–500 recipients: queues them respecting the remaining daily budget; the scheduler sends them FIFO |
+| POST | `api/webhooks` | EmailAuthGuard | Register a delivery-status webhook for the calling client (secret returned once) |
+| GET | `api/webhooks/my` | EmailAuthGuard | List own webhook endpoints (secret never exposed) |
+| PUT | `api/webhooks/:endpointUuid` | EmailAuthGuard | Update url / active toggle (uuid DB-side) |
 | POST | `api/nexlify-keys/generate` | AuthGuard | Generate a client API key (raw key returned once) |
 | GET | `api/nexlify-keys/my` | AuthGuard | List the calling client's API keys (masked) |
 | PUT | `api/nexlify-keys/:id/revoke` | AuthGuard | Revoke an API key |
