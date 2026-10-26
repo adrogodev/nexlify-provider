@@ -35,7 +35,6 @@ export class SendEmailUseCase implements UseCase<SendEmailInput, SendEmailResult
         }
 
         const persisted = await this._emailsRepository.create({
-            email_uuid: this._idGenerator.generateUuid(),
             short_code: this._idGenerator.generateShortCode(),
             id_client: null,
             from_email: values.from,

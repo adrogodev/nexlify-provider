@@ -37,13 +37,12 @@ describe('SendEmailUseCase', () => {
         text: 'mensaje',
     } as never as SendEmailInput;
 
-    it('persists the email as QUEUED with uuid and short code before sending', async () => {
+    it('persists the email as QUEUED with short code and DB-side uuid (code does not send email_uuid)', async () => {
         const { useCase, emailsRepo, attempt } = build();
 
         await useCase.run({ data: input });
 
         expect(emailsRepo.create).toHaveBeenCalledWith(expect.objectContaining({
-            email_uuid: createdEmail.email_uuid,
             short_code: createdEmail.short_code,
             state: 'QUEUED',
             attempts: 0,
@@ -51,6 +50,7 @@ describe('SendEmailUseCase', () => {
             to_email: input.to,
             subject: input.subject,
         }));
+        expect(emailsRepo.create.mock.calls[0][0].email_uuid).toBeUndefined();;
         expect(attempt).toHaveBeenCalledWith(100n);
     });
 
