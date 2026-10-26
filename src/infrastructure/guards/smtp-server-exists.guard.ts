@@ -10,12 +10,13 @@ export class SmtpServerExistsGuard implements CanActivate {
 
     async canActivate(_: ExecutionContext): Promise<boolean> {
         const configuration = await this._nexlifyConfigurationRepository.findConfiguration();
-        if (configuration !== null) {
-            if (configuration.id_smtp_server === null) {
-                throw new AlreadyExistsException('No se ha configurado el servidor SMTP en la plataforma');
-            }
+        if (configuration === null) {
+            throw new AlreadyExistsException('No se ha realizado la configuración para el uso de la plataforma');
         }
-        
+        if (configuration.id_smtp_server === null) {
+            throw new AlreadyExistsException('No se ha configurado el servidor SMTP en la plataforma');
+        }
+
         return true;
     }
 }

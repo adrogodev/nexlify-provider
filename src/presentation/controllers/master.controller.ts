@@ -1,8 +1,10 @@
-import { Controller, Get, HttpCode } from "@nestjs/common";
+import { Controller, Get, HttpCode, UseGuards } from "@nestjs/common";
 import { MasterDataDTO } from "src/core/application/dtos";
 import { IdTypesUseCase } from "src/core/application/use-cases/master";
 import { ClientResponse } from "src/core/domain/models";
+import { AuthGuard } from "src/infrastructure/guards";
 
+@UseGuards(AuthGuard)
 @Controller('api/master')
 export class MasterController {
     constructor(
