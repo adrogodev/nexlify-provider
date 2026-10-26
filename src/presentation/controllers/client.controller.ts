@@ -90,7 +90,7 @@ export class ClientContoller {
         return new ClientResponse({
             ok: true,
             message: 'Informacion del cliente actualizada exitosamente',
-            data: null
+            data: true
         });
     }
 
@@ -103,7 +103,7 @@ export class ClientContoller {
         return new ClientResponse({
             ok: true,
             message: 'Estado del cliente actualizado exitosamente',
-            data: null
+            data: true
         });
     }
 
@@ -116,7 +116,7 @@ export class ClientContoller {
         return new ClientResponse({
             ok: true,
             message: 'Si el usuario existe se enviara un email',
-            data: null
+            data: true
         });
     }
 
@@ -127,7 +127,7 @@ export class ClientContoller {
         return new ClientResponse({
             ok: true,
             message: 'Contraseña restablecida exitosamente',
-            data: null
+            data: true
         });
     }
 }

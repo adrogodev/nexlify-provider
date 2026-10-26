@@ -36,9 +36,11 @@ export class ForgotPasswordUseCase implements UseCase<ForgotPasswordInput, boole
         clientCreds.recovery_token = recoveryTokenChip;
         await this._clientCredentialsRepository.update(clientCreds.id_client_credential, clientCreds);
 
-        const client = await this._clientRepository.getByIdAsync(BigInt(clientCreds.id_client));
+        const client = await this._clientRepository.getByIdAsync(BigInt(clientCreds.id_client ?? 0));
         const configuration = await this._nexlifyConfigurationRepository.findConfiguration();
-        const smtp = await this._smtpServerRepository.getByIdAsync(configuration?.id_smtp_server!);
+        const smtp = configuration?.id_smtp_server !== null && configuration?.id_smtp_server !== undefined
+            ? await this._smtpServerRepository.getByIdAsync(configuration.id_smtp_server)
+            : null;
 
         const resetLink = `${this._appConfig.PLATFORM_URL}/reset-password?token=${encodeURIComponent(recoveryTokenChip)}`;
 
@@ -47,7 +49,7 @@ export class ForgotPasswordUseCase implements UseCase<ForgotPasswordInput, boole
                 host: smtp?.host ?? '',
                 port: smtp?.port ?? 587,
                 secure: smtp?.port === 465,
-                user: configuration?.sender_email!,
+                user: configuration?.sender_email ?? '',
                 password: configuration?.mail_application_password ?? ''
             },
             email: {

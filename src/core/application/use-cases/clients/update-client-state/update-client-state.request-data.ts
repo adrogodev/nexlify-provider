@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsNumber, IsOptional } from "class-validator";
+import { IsEnum, IsNumber, IsOptional } from "class-validator";
 import { ClientStateEnum } from "src/core/domain/enum";
 
 export class UpdateClientStateRequestData {
@@ -7,12 +7,11 @@ export class UpdateClientStateRequestData {
     @IsNumber()
     id_client: number;
 
-    /** Must be a ClientStateEnum value; the membership is validated by the request pipe. */
-    @IsOptional()
+    /** Target client state; must be a ClientStateEnum value (validated by the request pipe). */
     @Type(() => Number)
-    @IsInt()
+    @IsNumber()
     @IsEnum(ClientStateEnum)
-    id_client_state?: number;
+    id_client_state: number;
 }
 
 export type UpdateClientStateInput = UpdateClientStateRequestData & { id_client_state: number };
