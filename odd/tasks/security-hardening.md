@@ -25,7 +25,7 @@ Test runner: `pnpm test` (Jest, rootDir `src`, colocated `*.spec.ts`) + `pnpm te
 | T2 | S2 | inline | 63d4264 fix(security): TLS del mailer configurable por env (edicion de .env.example denegada por permisos; documentado en README) |
 | T3 | S3 | inline | 8c5776a feat(security): reemplaza SHA-256 por bcrypt en credenciales con soporte legacy y mejora automatica al iniciar sesion |
 | T4 | S4 | inline | 7692801 fix(security): protege endpoints de email y master con AuthGuard, aplica ConfigurationExistsGuard y corrige bypass en SmtpServerExistsGuard |
-| T5 | S5 | inline | pending |
+| T5 | S5 | inline | a3ade78 feat(email): envio de correo con credenciales SMTP de configuracion global, sin credenciales dummy |
 | T6 | S6 | inline | pending |
 
 ## Log
