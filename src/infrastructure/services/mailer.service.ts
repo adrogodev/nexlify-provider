@@ -2,6 +2,7 @@ import { colors } from "@gamastudio/colorslog";
 import { Injectable } from "@nestjs/common";
 import { Transporter } from "nodemailer";
 import * as nodemailer from "nodemailer";
+import * as env from "env-var";
 import { IMailerService, MailerPayload } from "src/core/application/contracts/services";
 import { TransporterData } from "src/core/domain/models";
 
@@ -41,8 +42,10 @@ export class MailerService implements IMailerService {
                 pass: config.password
             },
             tls: {
-                ciphers: 'SSLv3',
-                rejectUnauthorized: false
+                rejectUnauthorized: env
+                    .get("MAILER_TLS_REJECT_UNAUTHORIZED")
+                    .default("true")
+                    .asBoolStrict()
             }
         });
 
