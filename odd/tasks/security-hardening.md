@@ -24,7 +24,7 @@ Test runner: `pnpm test` (Jest, rootDir `src`, colocated `*.spec.ts`) + `pnpm te
 | T1 | S1 | inline | ed8196e fix(security): elimina la key JWT de fallback hardcodeada y lanza error con key vacia |
 | T2 | S2 | inline | 63d4264 fix(security): TLS del mailer configurable por env (edicion de .env.example denegada por permisos; documentado en README) |
 | T3 | S3 | inline | 8c5776a feat(security): reemplaza SHA-256 por bcrypt en credenciales con soporte legacy y mejora automatica al iniciar sesion |
-| T4 | S4 | inline | pending |
+| T4 | S4 | inline | 7692801 fix(security): protege endpoints de email y master con AuthGuard, aplica ConfigurationExistsGuard y corrige bypass en SmtpServerExistsGuard |
 | T5 | S5 | inline | pending |
 | T6 | S6 | inline | pending |
 

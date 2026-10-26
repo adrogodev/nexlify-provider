@@ -61,8 +61,8 @@ import { MasterController } from "./master.controller";
         },
         {
             provide: SendEmailUseCase,
-            useFactory: (service) => new SendEmailUseCase(service),
-            inject: [MAILER_SERVICE]
+            useFactory: (configRepo, smtpRepo, service) => new SendEmailUseCase(configRepo, smtpRepo, service),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, MAILER_SERVICE]
         },
         {
             provide: AddNexlifyConfigurationUseCase,
