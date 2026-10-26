@@ -1,6 +1,7 @@
 export * from './app-config.interface';
 export * from './encrypter.interface';
 export * from './hash-generator.interface';
+export * from './id-generator.interface';
 export * from './jwt-generator.interface';
 export * from './password-hasher.interface';
 export * from './request-context.interface';
