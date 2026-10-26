@@ -1,4 +1,4 @@
-import type { IEmailsRepository, IEmailSendLogsRepository } from "src/core/application/contracts/persistence";
+import type { IEmailsRepository, IEmailSendLogsRepository, IWebhookDeliveriesRepository, IWebhookEndpointsRepository } from "src/core/application/contracts/persistence";
 import type { INexlifyConfigurationRepository, ISmtpServerRepository } from "src/core/application/contracts/persistence";
 import type { IMailerService } from "src/core/application/contracts/services";
 import { Email } from "src/core/domain/entities/email.entity";
@@ -6,6 +6,13 @@ import { EmailLogLevelEnum, EmailStateEnum } from "src/core/domain/enum";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL_SECONDS = 60;
+
+/** Final states that trigger one delivery-status webhook per active endpoint. */
+const WEBHOOK_FINAL_STATES = new Set<EmailStateEnum>([
+    EmailStateEnum.SENT,
+    EmailStateEnum.WARNING,
+    EmailStateEnum.FAILED,
+]);
 
 /**
  * Performs one send attempt for an already-persisted email record:
@@ -19,6 +26,8 @@ export class EmailAttemptService {
         private readonly _emailsRepository: IEmailsRepository,
         private readonly _emailSendLogsRepository: IEmailSendLogsRepository,
         private readonly _mailerService: IMailerService,
+        private readonly _webhookEndpointsRepository: IWebhookEndpointsRepository,
+        private readonly _webhookDeliveriesRepository: IWebhookDeliveriesRepository,
     ) { }
 
     public attempt = async (emailId: bigint): Promise<Email> => {
@@ -97,7 +106,40 @@ export class EmailAttemptService {
         email.sent_at = sent_at;
         email.next_retry_at = next_retry_at;
 
-        const updated = await this._emailsRepository.update(email.id_email, email);
-        return updated ?? email;
+        const updatedEmail = await this._emailsRepository.update(email.id_email, email);
+        const finalEmail = updatedEmail ?? email;
+
+        await this.#enqueueDeliveryStatusWebhooks(finalEmail, state);
+
+        return finalEmail;
     };
+
+    async #enqueueDeliveryStatusWebhooks(finalEmail: Email, state: EmailStateEnum): Promise<void> {
+        // Delivery-status webhooks are queued, never sent synchronously: every
+        // ACTIVE endpoint of the email's client gets one row per final state.
+        try {
+            if (
+                finalEmail.id_client !== null &&
+                state !== null &&
+                WEBHOOK_FINAL_STATES.has(state)
+            ) {
+                const endpoints = await this._webhookEndpointsRepository.findActiveByClientId(finalEmail.id_client);
+
+                for (const endpoint of endpoints) {
+                    await this._webhookDeliveriesRepository.create({
+                        id_endpoint: endpoint.id_endpoint,
+                        id_email: finalEmail.id_email,
+                        event: state,
+                        attempt: 0,
+                        ok: null,
+                        status_code: null,
+                        error: null,
+                        next_retry_at: new Date(),
+                    });
+                }
+            }
+        } catch {
+            // Enqueue failure must never break the send outcome.
+        }
+    }
 }

@@ -25,6 +25,8 @@ describe('API (e2e)', () => {
                 emails: { findMany: jest.fn(async () => []) },
                 email_send_logs: {},
                 id_types: { findMany: jest.fn(async () => []) },
+                webhook_endpoints: {},
+                webhook_deliveries: {},
             })
             .compile();
 
@@ -62,6 +64,26 @@ describe('API (e2e)', () => {
     it('POST /api/email/:emailId/retry rejects unauthenticated requests (AuthGuard)', () => {
         return request(app.getHttpServer())
             .post('/api/email/NX-AAAAAA1/retry')
+            .expect(403);
+    });
+
+    it('POST /api/webhooks rejects unauthenticated requests (EmailAuthGuard)', () => {
+        return request(app.getHttpServer())
+            .post('/api/webhooks')
+            .send({ url: 'https://hooks.local/receiver' })
+            .expect(403);
+    });
+
+    it('GET /api/webhooks/my rejects unauthenticated requests (EmailAuthGuard)', () => {
+        return request(app.getHttpServer())
+            .get('/api/webhooks/my')
+            .expect(403);
+    });
+
+    it('PUT /api/webhooks/:endpointUuid rejects unauthenticated requests (EmailAuthGuard)', () => {
+        return request(app.getHttpServer())
+            .put('/api/webhooks/11111111-1111-4111-8111-111111111111')
+            .send({ url: 'https://hooks.local/receiver' })
             .expect(403);
     });
 

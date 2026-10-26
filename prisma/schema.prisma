@@ -201,3 +201,30 @@ model email_send_logs {
 
   @@index([id_email])
 }
+
+model webhook_endpoints {
+  id_endpoint   BigInt    @id @default(autoincrement())
+  endpoint_uuid String    @unique @db.Uuid @default(dbgenerated("gen_random_uuid()"))
+  id_client     BigInt?
+  url           String    @db.VarChar(500)
+  secret        String    @db.VarChar(255)
+  is_active     Boolean   @default(true)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model webhook_deliveries {
+  id_delivery   BigInt    @id @default(autoincrement())
+  id_endpoint   BigInt
+  id_email      BigInt
+  event         String    @db.VarChar(20)
+  attempt       Int       @default(0)
+  ok            Boolean?
+  status_code   Int?
+  error         String?   @db.VarChar(500)
+  next_retry_at DateTime?
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([next_retry_at])
+}

@@ -11,3 +11,5 @@ export * from './nexlify-keys.repository';
 export * from './nexlify-keys-logs.repository';
 export * from './templates.repository';
 export * from './users.repository';
+export * from './webhook-delivery.repository';
+export * from './webhook-endpoint.repository';
