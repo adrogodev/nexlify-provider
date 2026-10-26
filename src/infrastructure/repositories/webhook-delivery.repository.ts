@@ -22,7 +22,10 @@ export class WebhookDeliveriesRepository extends BaseRepository<WebhookDelivery,
     #buildDueFilters(before: Date): Record<string, unknown> {
         return {
             next_retry_at: { lte: before },
-            ok: { not: true },
+            OR: [
+                { ok: null },
+                { ok: false },
+            ],
         };
     }
 }

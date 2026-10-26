@@ -5,6 +5,8 @@ import { EmailStateEnum } from "src/core/domain/enum";
 import { PrismaService } from "../prisma/prisma.service";
 import { BaseRepository } from "./base.repository";
 
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 @Injectable()
 export class EmailsRepository extends BaseRepository<Email, 'id_email'> implements IEmailsRepository {
     constructor(prisma: PrismaService) {
@@ -12,13 +14,18 @@ export class EmailsRepository extends BaseRepository<Email, 'id_email'> implemen
     }
 
     public async findByUuidOrShortCode(identifier: string): Promise<Email | null> {
+        // email_uuid is a NATIVE uuid column: a short code would fail the cast,
+        // so only uuid-shaped identifiers may hit that branch.
+        const identifierIsUuid = UUID_SHAPE.test(identifier);
         return await this._model.findFirst({
-            where: {
-                OR: [
-                    { email_uuid: identifier },
-                    { short_code: identifier },
-                ],
-            },
+            where: identifierIsUuid
+                ? {
+                    OR: [
+                        { email_uuid: identifier },
+                        { short_code: identifier },
+                    ],
+                }
+                : { short_code: identifier },
         });
     }
 

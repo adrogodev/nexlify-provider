@@ -49,6 +49,9 @@ export class WebhookDeliveryScheduler implements OnModuleInit, OnModuleDestroy {
         this.#running = true;
         try {
             const due = await this._deliveriesRepository.findDue(new Date());
+            if (due.length > 0) {
+                colors.info(`Entregas de webhook pendientes: ${due.length}`, { dateShow: false });
+            }
 
             for (const delivery of due) {
                 try {
