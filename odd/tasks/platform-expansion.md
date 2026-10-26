@@ -27,16 +27,25 @@ Test runner: `pnpm test` (colocated specs) + `pnpm test:e2e`. DB still down at `
 | ID | Spec | Route | Commit |
 |----|------|-------|--------|
 | T1 | S1 | inline | 10b3e75 feat(platform): uuid v4 generado por base de datos con gen_random_uuid |
-| T2 | S2 | inline | pending |
-| T3 | S3 | inline | pending |
-| T4 | S4 | delegated | d031ed4 feat(platform): CRUD de usuarios por cliente con listado paginado y control de permisos |
-| T5 | S5 | delegated | 848b8d8 feat(platform): ciclo de vida del cliente y flujo de recuperacion de contrasena |
-| T6 | S6 | delegated | eb6470d feat(platform): CRUD de plantillas con uuid generado por base de datos y listado paginado |
-| T7 | S7 | inline | pending |
+| T2 | S2 | inline | 8353cd6 feat(platform): gestion de API keys por endpoint y autenticacion dual JWT/X-API-Key |
+| T3 | S3 | inline | 8353cd6 feat(platform): autenticacion dual JWT/X-API-Key en el modulo de email |
+| T4 | S4 | delegated | d031ed4 + 1c7604c |
+| T5 | S5 | delegated | 848b8d8 (+ doc en 1c7604c) |
+| T6 | S6 | delegated | eb6470d (+ doc en da5546a) |
+| T7 | S7 | inline | cierre (correccion e8d389d: tipados + smtp forgot-password; README endpoint table + uuid DB) |
 
 ## Log
 
 - L1 (2026-10-26) — Original request verbatim: "sigue con las siguiente piezas de la propuesta y la generacion del uuid v4 hazla automaticamente por base de datos y solo si es necesario en el codigo, trata de no generarlo directamente desde el codigo" — instruction applies to every uuid-typed field (emails.email_uuid done via DB default; templates.id_template likewise; no code-side uuid v4 anywhere).
+- L5 (2026-10-26) — Verification evidence (parent): `pnpm test -- --runInBand` → 19 suites, 86 tests passed; `pnpm test:e2e` → 5 passed; `pnpm build` clean after the correction commit `e8d389d` (worker handoffs were verified per-worker in-en-suite; the only corrected blockers were TypeScript nullability/typing issues that the unit suite did not surface, fixed in one bounded batch). `.env.example` edits remain denied by permissions — all new env-free settings, nothing required.
+- Risk lines:
+  - S1: Risk: item 1 (schema default change, additive; migration pending with the user's DB — same status as email-delivery-pipeline S8).
+  - S2: Risk: item 3 (new public endpoints + key material; raw key returned exactly once).
+  - S3: Risk: item 2/3 (new authentication mechanism on email routes; X-API-Key path bypasses IP binding of JWT sessions by design — documented).
+  - S4: Risk: item 3 (endpoint contract additions for users table).
+  - S5: Risk: item 1/2 (credential mutation via recovery flow; mitigated: encrypted single-use token, bcrypt on write, generic never-leaking response).
+  - S6: Risk: item 3 (templates CRUD additions).
+
 - L2 (2026-10-26) — T4 delegated done: users CRUD (`create-user`, `get-users`, `update-user`) on the existing `users` table with `USERS_REPOSITORY` (`getAllWithFilters`/`countWithFilters` following `emails.repository`), `User` entity, `UserInfoDTO`, `UserMapper` and controller `api/users` (`POST`, paginated `GET`, `PUT :id`), all `AuthGuard` + `ContextInterceptor`; id_client edit from body is admin-only on create and never part of the update patch; new entity file `src/core/domain/entities/user.entity.ts` was outside the planned edit surface and approved by the user before writing.
 - L3 (2026-10-26) — T5 delegated done: `PUT api/client/update`, `PUT api/client/state` (admin only, `ClientStateEnum`) and public `POST api/client/forgot-password` (recovery JWT HS512 30m with code-level `jti` uuid — plain string column, no DB default — encrypted and stored in `client_credentials.recovery_token`, reset-link email built from `nexlify_configuration` SMTP creds, always generic response, unknown username resolves without side effects) plus `POST api/client/reset-password` (decrypt → `getDataToken` verify → exact match against stored `recovery_token` single use → bcrypt hash → token cleared); credentials identity reused `findByClientId`, so no new method on the credentials contract was needed.
 - L4 (2026-10-26) — T6 delegated done: templates CRUD (`create-template`, `get-templates`, `update-template`) on the existing `templates` table with `TEMPLATES_REPOSITORY` (`create` omits `id_template`: the uuid v4 is DB-side `gen_random_uuid`, mirroring the emails uuid override pattern; `getAllWithFilters`/`countWithFilters` following `emails.repository` filters), `Template` entity, `TemplateInfoDTO`, `TemplateMapper` and controller `api/templates` (`POST` admin-only, paginated `GET` — non-admin forced active-only via the use case, admin sees all — and `PUT :id` with `@IsUUID(4)` `TemplateIdParam`, patch limited to `subject`/`template`/`is_active`, unknown id → NotFound), all `AuthGuard` + `ContextInterceptor`; `is_active` defaults to `true` in code on create (the schema column is nullable with no DB default); 9 colocated specs, full suite 86 green, e2e 5 green.
