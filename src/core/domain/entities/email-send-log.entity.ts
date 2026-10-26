@@ -1,3 +1,5 @@
+import { EmailLogLevelEnum } from "../enum";
+
 export class EmailSendLog {
     constructor(
         public id_log: bigint,

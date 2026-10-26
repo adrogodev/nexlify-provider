@@ -1,3 +1,5 @@
+import { EmailStateEnum } from "../enum";
+
 export class Email {
     constructor(
         public id_email: bigint,
