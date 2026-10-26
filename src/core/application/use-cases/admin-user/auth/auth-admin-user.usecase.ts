@@ -1,4 +1,4 @@
-import type { IAppConfig, IEncrypter, IHashGenerator, IJwtGenerator } from 'src/core/application/contracts/infrastructure';
+import type { IAppConfig, IEncrypter, IJwtGenerator, IPasswordHasher } from 'src/core/application/contracts/infrastructure';
 import type { IAdminUserRepository } from 'src/core/application/contracts/persistence';
 import { AuthDto } from 'src/core/application/dtos';
 import { UnauthorizedException } from 'src/core/domain/exceptions';
@@ -9,7 +9,7 @@ import type { AuthAdminUserInput } from './auth-admin-user.request-data';
 export class AuthAdminUserUseCase implements UseCase<AuthAdminUserInput, AuthDto> {
     constructor(
         private readonly _adminUserRepository: IAdminUserRepository,
-        private readonly _hashGenerator: IHashGenerator,
+        private readonly _passwordHasher: IPasswordHasher,
         private readonly _jwt: IJwtGenerator,
         private readonly _encrypter: IEncrypter,
         private readonly _appConfig: IAppConfig,
@@ -21,10 +21,15 @@ export class AuthAdminUserUseCase implements UseCase<AuthAdminUserInput, AuthDto
         const user = await this._adminUserRepository.findByUsername(username);
         if (!user) throw new UnauthorizedException("Credenciales invalidas");;
 
-        const hashedInput = this._hashGenerator.SHA256(password);
-        if (hashedInput !== user.password) throw new UnauthorizedException("Credenciales invalidas");
+        const isValidPassword = await this._passwordHasher.verify(password, user.password ?? '');
+        if (!isValidPassword) throw new UnauthorizedException("Credenciales invalidas");
 
         if (!user.is_active) throw new UnauthorizedException();
+
+        // Upgrade legacy unsalted SHA-256 hashes to bcrypt on successful login.
+        if (!this._passwordHasher.isBcryptHash(user.password ?? '')) {
+            user.password = await this._passwordHasher.hash(password);
+        }
 
         const tokenInfo = TokenInfo.create({ jti: null, ip_connection, id_user: Number(user.id_user), is_admin: true });
 

@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
+import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, JWT_GENERATOR, PASSWORD_HASHER, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
 import { ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY } from "src/core/application/contracts/persistence";
 import { MAILER_SERVICE } from "src/core/application/contracts/services";
 import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-cases/admin-user";
@@ -45,8 +45,8 @@ import { MasterController } from "./master.controller";
         },
         {
             provide: AuthAdminUserUseCase,
-            useFactory: (repo, hashGen, jwtGen, encrypterGen, appConfig) => new AuthAdminUserUseCase(repo, hashGen, jwtGen, encrypterGen, appConfig),
-            inject: [ADMIN_USER_REPOSITORY, HASH_GENERATOR, JWT_GENERATOR, ENCRYPTER, APP_CONFIG],
+            useFactory: (repo, hasher, jwtGen, encrypterGen, appConfig) => new AuthAdminUserUseCase(repo, hasher, jwtGen, encrypterGen, appConfig),
+            inject: [ADMIN_USER_REPOSITORY, PASSWORD_HASHER, JWT_GENERATOR, ENCRYPTER, APP_CONFIG],
         },
         {
             provide: UserDataUseCase,
@@ -86,13 +86,13 @@ import { MasterController } from "./master.controller";
         },
         {
             provide: AssignCredentialsUseCase,
-            useFactory: (cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, hasGen, appConfig) => new AssignCredentialsUseCase(cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, hasGen, appConfig),
-            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, HASH_GENERATOR, APP_CONFIG]
+            useFactory: (cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, assignHasGen, passHasher, appConfig) => new AssignCredentialsUseCase(cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, assignHasGen, passHasher, appConfig),
+            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, HASH_GENERATOR, PASSWORD_HASHER, APP_CONFIG]
         },
         {
             provide: SignInUseCase,
-            useFactory: (credsRepo, cliRepo, hashGen, jwtGen, encrypterGen, appConfig) => new SignInUseCase(credsRepo, cliRepo, hashGen, jwtGen, encrypterGen, appConfig),
-            inject: [CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, HASH_GENERATOR, JWT_GENERATOR, ENCRYPTER, APP_CONFIG]
+            useFactory: (credsRepo, cliRepo, hasher, jwtGen, encrypterGen, appConfig) => new SignInUseCase(credsRepo, cliRepo, hasher, jwtGen, encrypterGen, appConfig),
+            inject: [CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, PASSWORD_HASHER, JWT_GENERATOR, ENCRYPTER, APP_CONFIG]
         },
         {
             provide: ClientDataUseCase,

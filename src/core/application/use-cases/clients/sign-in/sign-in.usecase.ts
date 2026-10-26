@@ -1,5 +1,5 @@
 import type { IAppConfig } from "src/core/application/contracts/infrastructure";
-import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/contracts/infrastructure";
+import { IEncrypter, IPasswordHasher, IJwtGenerator } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository } from "src/core/application/contracts/persistence";
 import { AuthDto } from "src/core/application/dtos";
 import { UnauthorizedException } from "src/core/domain/exceptions";
@@ -11,7 +11,7 @@ export class SignInUseCase implements UseCase<SignInInput, AuthDto> {
     constructor(
         private readonly _clientCredentialsRepository: IClientCredentialsRepository,
         private readonly _clientRepositoty: IClientRepository,
-        private readonly _hashGenerator: IHashGenerator,
+        private readonly _passwordHasher: IPasswordHasher,
         private readonly _jwt: IJwtGenerator,
         private readonly _encrypter: IEncrypter,
         private readonly _appConfig: IAppConfig,
@@ -23,8 +23,13 @@ export class SignInUseCase implements UseCase<SignInInput, AuthDto> {
         const clientCreds = await this._clientCredentialsRepository.findByClientByUsername(username);
         if (!clientCreds) throw new UnauthorizedException("Credenciales invalidas");;
 
-        const hashedInput = this._hashGenerator.SHA256(password);
-        if (hashedInput !== clientCreds.password) throw new UnauthorizedException("Credenciales invalidas");
+        const isValidPassword = await this._passwordHasher.verify(password, clientCreds.password ?? '');
+        if (!isValidPassword) throw new UnauthorizedException("Credenciales invalidas");
+
+        // Upgrade legacy unsalted SHA-256 hashes to bcrypt on successful login.
+        if (!this._passwordHasher.isBcryptHash(clientCreds.password ?? '')) {
+            clientCreds.password = await this._passwordHasher.hash(password);
+        }
 
         const client = await this._clientRepositoty.getByIdAsync(BigInt(clientCreds.id_client!));
 

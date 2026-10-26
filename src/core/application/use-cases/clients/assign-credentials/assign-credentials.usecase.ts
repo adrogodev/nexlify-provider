@@ -1,5 +1,5 @@
 import type { IAppConfig } from "src/core/application/contracts/infrastructure";
-import { IEncrypter, IHashGenerator, IJwtGenerator } from "src/core/application/contracts/infrastructure";
+import { IEncrypter, IHashGenerator, IJwtGenerator, IPasswordHasher } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository, INexlifyKeysLogsRepository, INexlifyKeysRepository } from "src/core/application/contracts/persistence";
 import { Client } from "src/core/domain/entities/client.entity";
 import { ClientCredentials } from "src/core/domain/entities/client_credentials.entity";
@@ -18,7 +18,8 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
         private readonly _nexlifyKeyLog: INexlifyKeysLogsRepository,
         private readonly _jwt: IJwtGenerator,
         private readonly _encryptor: IEncrypter,
-        private readonly _hash: IHashGenerator,
+        private readonly _assignHash: IHashGenerator,
+        private readonly _passwordHasher: IPasswordHasher,
         private readonly _appConfig: IAppConfig,
     ) { }
 
@@ -46,7 +47,7 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
 
         //Se registar las credenciales de acceso para el cliente
         client_credentials!.username = values.username;
-        client_credentials!.password = this._hash.SHA256(values.password);
+        client_credentials!.password = await this._passwordHasher.hash(values.password);
 
         await this._clientCredentialsRepository.update(client_credentials!.id_client_credential, client_credentials!);
 
@@ -55,13 +56,13 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
 
         await this._nexlifyKey.create({
             id_client: client.id_client,
-            api_key: this._hash.SHA256(clientApiKey),
+            api_key: this._assignHash.SHA256(clientApiKey),
             state: true
         });
 
         await this._nexlifyKeyLog.create({
             id_client: client.id_client,
-            api_key: this._hash.SHA256(clientApiKey),
+            api_key: this._assignHash.SHA256(clientApiKey),
         });
 
         return true;

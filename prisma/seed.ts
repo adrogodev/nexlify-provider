@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { AppEnvs as _env } from '../src/infrastructure/environments/app-env.config'
-import { HashGeneratorHelper } from 'src/infrastructure/helpers/hash-generator.helper';
+import { PasswordHasherHelper } from 'src/infrastructure/helpers/password-hasher.helper';
 import { colors } from '@gamastudio/colorslog'
 
 const prisma = new PrismaClient({
@@ -13,9 +13,9 @@ const prisma = new PrismaClient({
 async function main() {
     colors.info('Seeding admin_user...', { dateShow: false });
 
-    const hashGenerator = new HashGeneratorHelper();
+    const passwordHasher = new PasswordHasherHelper();
 
-    const hashPassword = hashGenerator.SHA256(_env.ADMIN_PASSWORD);
+    const hashPassword = await passwordHasher.hash(_env.ADMIN_PASSWORD);
 
     await prisma.admin_user.create({
         data: {
