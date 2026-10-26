@@ -35,8 +35,10 @@ import { IdTypesUseCase } from "src/core/application/use-cases/master";
 import { MasterController } from "./master.controller";
 import { NexlifyKeysController } from "./nexlify-keys.controller";
 import { UsersController } from "./users.controller";
+import { TemplatesController } from "./templates.controller";
 import { CreateUserUseCase, GetUsersUseCase, UpdateUserUseCase } from "src/core/application/use-cases/users";
-import { USERS_REPOSITORY } from "src/core/application/contracts/persistence";
+import { USERS_REPOSITORY, TEMPLATES_REPOSITORY } from "src/core/application/contracts/persistence";
+import { CreateTemplateUseCase, GetTemplatesUseCase, UpdateTemplateUseCase } from "src/core/application/use-cases/templates";
 
 @Module({
     imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
@@ -49,7 +51,8 @@ import { USERS_REPOSITORY } from "src/core/application/contracts/persistence";
         VerifyController,
         MasterController,
         NexlifyKeysController,
-        UsersController
+        UsersController,
+        TemplatesController
     ],
     providers: [
         AuthGuard,
@@ -215,6 +218,21 @@ import { USERS_REPOSITORY } from "src/core/application/contracts/persistence";
             provide: UpdateUserUseCase,
             useFactory: (context, usersRepo) => new UpdateUserUseCase(context, usersRepo),
             inject: [REQUEST_CONTEXT, USERS_REPOSITORY]
+        },
+        {
+            provide: CreateTemplateUseCase,
+            useFactory: (context, templatesRepo) => new CreateTemplateUseCase(context, templatesRepo),
+            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY]
+        },
+        {
+            provide: GetTemplatesUseCase,
+            useFactory: (context, templatesRepo) => new GetTemplatesUseCase(context, templatesRepo),
+            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY]
+        },
+        {
+            provide: UpdateTemplateUseCase,
+            useFactory: (context, templatesRepo) => new UpdateTemplateUseCase(context, templatesRepo),
+            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY]
         }
 
     ]
