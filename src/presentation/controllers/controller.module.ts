@@ -1,59 +1,129 @@
-import { Module } from "@nestjs/common";
-import { APP_CONFIG, ENCRYPTER, HASH_GENERATOR, ID_GENERATOR, JWT_GENERATOR, PASSWORD_HASHER, REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
-import { EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, ADMIN_USER_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, EMAILS_REPOSITORY, ID_TYPE_REPOSITORY, NEXLIFY_CONFIGURATION_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, SMTP_SERVER_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY } from "src/core/application/contracts/persistence";
-import { HTTP_DELIVERY_SERVICE, MAILER_SERVICE } from "src/core/application/contracts/services";
-import { GenerateNexlifyKeyUseCase, ListMyNexlifyKeysUseCase, RevokeNexlifyKeyUseCase } from "src/core/application/use-cases/nexlify-keys";
-import { AuthAdminUserUseCase, UserDataUseCase } from "src/core/application/use-cases/admin-user";
-import { AssignCredentialsUseCase, ClientDataUseCase, GetAllClientsUseCase, RegisterClientUseCase, SignInUseCase } from "src/core/application/use-cases/clients";
-import { UpdateClientUseCase } from "src/core/application/use-cases/clients/update-client";
-import { UpdateClientStateUseCase } from "src/core/application/use-cases/clients/update-client-state";
-import { ForgotPasswordUseCase } from "src/core/application/use-cases/clients/forgot-password";
-import { ResetPasswordUseCase } from "src/core/application/use-cases/clients/reset-password";
-import { SendEmailUseCase } from "src/core/application/use-cases/email/send-email/send-email.usecase";
-import { EmailAttemptService } from "src/core/application/use-cases/email/services/email-attempt.service";
-import { InboundEmailUseCase } from "src/core/application/use-cases/email/inbound-email/inbound-email.usecase";
-import { CreateSubscriptionUseCase } from "src/core/application/use-cases/email-event-subscriptions/create-subscription/create-subscription.usecase";
-import { GetMySubscriptionsUseCase } from "src/core/application/use-cases/email-event-subscriptions/get-my-subscriptions/get-my-subscriptions.usecase";
-import { UpdateSubscriptionUseCase } from "src/core/application/use-cases/email-event-subscriptions/update-subscription/update-subscription.usecase";
-import { InboundWebhookSecurityService } from "src/infrastructure/services/inbound-webhook.security";
-import { InboundEmailController } from "./inbound-email.controller";
-import { DiffuseEmailUseCase } from "src/core/application/use-cases/email/diffuse-email/diffuse-email.usecase";
-import { GetEmailDetailUseCase } from "src/core/application/use-cases/email/get-email-detail/get-email-detail.usecase";
-import { GetEmailsUseCase } from "src/core/application/use-cases/email/get-emails/get-emails.usecase";
-import { RetryDueEmailsUseCase } from "src/core/application/use-cases/email/retry-due/retry-due-emails.usecase";
-import { RetryEmailUseCase } from "src/core/application/use-cases/email/retry-email/retry-email.usecase";
-import { DownloadEmailAttachmentUseCase } from "src/core/application/use-cases/email/get-email-detail/download-email-attachment.usecase";
-import { EmailRetryScheduler } from "src/infrastructure/services/email-retry.scheduler.service";
-import { AddNexlifyConfigurationUseCase, GetNexlifyConfigurationUseCase, UpdateNexlifyConfigurationUseCase } from "src/core/application/use-cases/nexlify-configuration";
-import { AddSmtpServerUseCase } from "src/core/application/use-cases/smtp-server";
-import { HelpersModule } from "src/infrastructure/helpers/helpers.module";
-import { RepositoriesModule } from "src/infrastructure/repositories/repositories.module";
-import { SecurityModule } from "src/infrastructure/security";
-import { ServicesModule } from "src/infrastructure/services/service.module";
-import { AdminUserController } from "./admin-user.controller";
-import { ClientContoller } from "./client.controller";
-import { EmailController } from "./email.controller";
-import { NexlifyConfigurationController } from "./nexlify-configuration.controller";
-import { SmtpServerController } from "./smtp-server.controller";
-import { AuthGuard, ConfigurationExistsGuard, EmailAuthGuard, SmtpServerExistsGuard, ApiKeyGuard } from "src/infrastructure/guards";
-import { TEMPLATE_SERVICE } from "src/core/application/contracts/services/template.service";
-import { VerifyCredentialAssignmentTokenUseCase } from "src/core/application/use-cases/verify";
-import { VerifyController } from "./verify.controller";
-import { IdTypesUseCase } from "src/core/application/use-cases/master";
-import { MasterController } from "./master.controller";
-import { NexlifyKeysController } from "./nexlify-keys.controller";
-import { UsersController } from "./users.controller";
-import { TemplatesController } from "./templates.controller";
-import { CreateUserUseCase, GetUsersUseCase, UpdateUserUseCase } from "src/core/application/use-cases/users";
-import { USERS_REPOSITORY, TEMPLATES_REPOSITORY } from "src/core/application/contracts/persistence";
-import { CreateTemplateUseCase, GetTemplatesUseCase, UpdateTemplateUseCase } from "src/core/application/use-cases/templates";
-import { ListMyWebhookEndpointsUseCase, RegisterWebhookEndpointUseCase, UpdateWebhookEndpointUseCase } from "src/core/application/use-cases/webhooks";
-import { WebhookDeliveryScheduler } from "src/infrastructure/services/webhook-delivery.scheduler.service";
-import { WebhooksController } from "./webhooks.controller";
-import { EmailEventSubscriptionsController } from "./email-event-subscriptions.controller";
+import { Module } from '@nestjs/common';
+import {
+    APP_CONFIG,
+    ENCRYPTER,
+    HASH_GENERATOR,
+    ID_GENERATOR,
+    JWT_GENERATOR,
+    PASSWORD_HASHER,
+    REQUEST_CONTEXT,
+} from 'src/core/application/contracts/infrastructure';
+import {
+    ADMIN_USER_REPOSITORY,
+    CLIENT_CREDENTIALS_REPOSITORY,
+    CLIENT_REPOSITORY,
+    EMAILS_REPOSITORY,
+    EMAIL_ATTACHMENTS_REPOSITORY,
+    EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY,
+    EMAIL_SEND_LOGS_REPOSITORY,
+    ID_TYPE_REPOSITORY,
+    NEXLIFY_CONFIGURATION_REPOSITORY,
+    NEXLIFY_KEYS_LOGS_REPOSITORY,
+    NEXLIFY_KEYS_REPOSITORY,
+    SMTP_SERVER_REPOSITORY,
+    WEBHOOK_DELIVERIES_REPOSITORY,
+    WEBHOOK_ENDPOINTS_REPOSITORY,
+} from 'src/core/application/contracts/persistence';
+import {
+    TEMPLATES_REPOSITORY,
+    USERS_REPOSITORY,
+} from 'src/core/application/contracts/persistence';
+import {
+    HTTP_DELIVERY_SERVICE,
+    MAILER_SERVICE,
+} from 'src/core/application/contracts/services';
+import { TEMPLATE_SERVICE } from 'src/core/application/contracts/services/template.service';
+import {
+    AuthAdminUserUseCase,
+    UserDataUseCase,
+} from 'src/core/application/use-cases/admin-user';
+import {
+    AssignCredentialsUseCase,
+    ClientDataUseCase,
+    GetAllClientsUseCase,
+    RegisterClientUseCase,
+    SignInUseCase,
+} from 'src/core/application/use-cases/clients';
+import { ClientDetailUseCase } from 'src/core/application/use-cases/clients/client-detail';
+import { ForgotPasswordUseCase } from 'src/core/application/use-cases/clients/forgot-password';
+import { ResetPasswordUseCase } from 'src/core/application/use-cases/clients/reset-password';
+import { UpdateClientUseCase } from 'src/core/application/use-cases/clients/update-client';
+import { UpdateClientStateUseCase } from 'src/core/application/use-cases/clients/update-client-state';
+import { CreateSubscriptionUseCase } from 'src/core/application/use-cases/email-event-subscriptions/create-subscription/create-subscription.usecase';
+import { GetMySubscriptionsUseCase } from 'src/core/application/use-cases/email-event-subscriptions/get-my-subscriptions/get-my-subscriptions.usecase';
+import { UpdateSubscriptionUseCase } from 'src/core/application/use-cases/email-event-subscriptions/update-subscription/update-subscription.usecase';
+import { DiffuseEmailUseCase } from 'src/core/application/use-cases/email/diffuse-email/diffuse-email.usecase';
+import { DownloadEmailAttachmentUseCase } from 'src/core/application/use-cases/email/get-email-detail/download-email-attachment.usecase';
+import { GetEmailDetailUseCase } from 'src/core/application/use-cases/email/get-email-detail/get-email-detail.usecase';
+import { GetEmailsUseCase } from 'src/core/application/use-cases/email/get-emails/get-emails.usecase';
+import { InboundEmailUseCase } from 'src/core/application/use-cases/email/inbound-email/inbound-email.usecase';
+import { RetryDueEmailsUseCase } from 'src/core/application/use-cases/email/retry-due/retry-due-emails.usecase';
+import { RetryEmailUseCase } from 'src/core/application/use-cases/email/retry-email/retry-email.usecase';
+import { SendEmailUseCase } from 'src/core/application/use-cases/email/send-email/send-email.usecase';
+import { EmailAttemptService } from 'src/core/application/use-cases/email/services/email-attempt.service';
+import { IdTypesUseCase } from 'src/core/application/use-cases/master';
+import {
+    AddNexlifyConfigurationUseCase,
+    GetNexlifyConfigurationUseCase,
+    UpdateNexlifyConfigurationUseCase,
+} from 'src/core/application/use-cases/nexlify-configuration';
+import {
+    GenerateNexlifyKeyUseCase,
+    ListMyNexlifyKeysUseCase,
+    RevokeNexlifyKeyUseCase,
+} from 'src/core/application/use-cases/nexlify-keys';
+import { AddSmtpServerUseCase } from 'src/core/application/use-cases/smtp-server';
+import {
+    CreateTemplateUseCase,
+    GetTemplatesUseCase,
+    UpdateTemplateUseCase,
+} from 'src/core/application/use-cases/templates';
+import {
+    CreateUserUseCase,
+    GetUsersUseCase,
+    UpdateUserUseCase,
+} from 'src/core/application/use-cases/users';
+import { VerifyCredentialAssignmentTokenUseCase } from 'src/core/application/use-cases/verify';
+import {
+    ListMyWebhookEndpointsUseCase,
+    RegisterWebhookEndpointUseCase,
+    UpdateWebhookEndpointUseCase,
+} from 'src/core/application/use-cases/webhooks';
+import {
+    ApiKeyGuard,
+    AuthGuard,
+    ConfigurationExistsGuard,
+    EmailAuthGuard,
+    SmtpServerExistsGuard,
+} from 'src/infrastructure/guards';
+import { HelpersModule } from 'src/infrastructure/helpers/helpers.module';
+import { RepositoriesModule } from 'src/infrastructure/repositories/repositories.module';
+import { SecurityModule } from 'src/infrastructure/security';
+import { EmailRetryScheduler } from 'src/infrastructure/services/email-retry.scheduler.service';
+import { InboundWebhookSecurityService } from 'src/infrastructure/services/inbound-webhook.security';
+import { ServicesModule } from 'src/infrastructure/services/service.module';
+import { WebhookDeliveryScheduler } from 'src/infrastructure/services/webhook-delivery.scheduler.service';
+import { AdminUserController } from './admin-user.controller';
+import { ClientContoller } from './client.controller';
+import { EmailEventSubscriptionsController } from './email-event-subscriptions.controller';
+import { EmailController } from './email.controller';
+import { InboundEmailController } from './inbound-email.controller';
+import { MasterController } from './master.controller';
+import { NexlifyConfigurationController } from './nexlify-configuration.controller';
+import { NexlifyKeysController } from './nexlify-keys.controller';
+import { SmtpServerController } from './smtp-server.controller';
+import { TemplatesController } from './templates.controller';
+import { UsersController } from './users.controller';
+import { VerifyController } from './verify.controller';
+import { WebhooksController } from './webhooks.controller';
 
 @Module({
-    imports: [RepositoriesModule, HelpersModule, SecurityModule, ServicesModule],
+    imports: [
+        RepositoriesModule,
+        HelpersModule,
+        SecurityModule,
+        ServicesModule,
+    ],
     controllers: [
         AdminUserController,
         ClientContoller,
@@ -67,46 +137,95 @@ import { EmailEventSubscriptionsController } from "./email-event-subscriptions.c
         UsersController,
         TemplatesController,
         WebhooksController,
-        EmailEventSubscriptionsController
+        EmailEventSubscriptionsController,
     ],
     providers: [
         AuthGuard,
         {
             provide: ApiKeyGuard,
-            useFactory: (keysRepo, hashGen) => new ApiKeyGuard(keysRepo, hashGen),
-            inject: [NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR]
+            useFactory: (keysRepo, hashGen) =>
+                new ApiKeyGuard(keysRepo, hashGen),
+            inject: [NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR],
         },
         {
             provide: EmailAuthGuard,
-            useFactory: (apiKeyGuard, authGuard) => new EmailAuthGuard(apiKeyGuard, authGuard),
-            inject: [ApiKeyGuard, AuthGuard]
+            useFactory: (apiKeyGuard, authGuard) =>
+                new EmailAuthGuard(apiKeyGuard, authGuard),
+            inject: [ApiKeyGuard, AuthGuard],
         },
         ConfigurationExistsGuard,
         SmtpServerExistsGuard,
         {
             provide: GenerateNexlifyKeyUseCase,
-            useFactory: (context, keysRepo, hashGen) => new GenerateNexlifyKeyUseCase(context, keysRepo, hashGen),
-            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR]
+            useFactory: (context, keysRepo, hashGen) =>
+                new GenerateNexlifyKeyUseCase(context, keysRepo, hashGen),
+            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR],
         },
         {
             provide: ListMyNexlifyKeysUseCase,
-            useFactory: (context, keysRepo) => new ListMyNexlifyKeysUseCase(context, keysRepo),
-            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY]
+            useFactory: (context, keysRepo) =>
+                new ListMyNexlifyKeysUseCase(context, keysRepo),
+            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY],
         },
         {
             provide: RevokeNexlifyKeyUseCase,
-            useFactory: (context, keysRepo) => new RevokeNexlifyKeyUseCase(context, keysRepo),
-            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY]
+            useFactory: (context, keysRepo) =>
+                new RevokeNexlifyKeyUseCase(context, keysRepo),
+            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY],
         },
         {
             provide: RegisterClientUseCase,
-            useFactory: (repo, credsRepo, jwtGen, encryptor, configRepo, smtpRepo, tmpService, mailerService, appConfig) => new RegisterClientUseCase(repo, credsRepo, jwtGen, encryptor, configRepo, smtpRepo, tmpService, mailerService, appConfig),
-            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, TEMPLATE_SERVICE, MAILER_SERVICE, APP_CONFIG]
+            useFactory: (
+                repo,
+                credsRepo,
+                jwtGen,
+                encryptor,
+                configRepo,
+                smtpRepo,
+                tmpService,
+                mailerService,
+                appConfig,
+            ) =>
+                new RegisterClientUseCase(
+                    repo,
+                    credsRepo,
+                    jwtGen,
+                    encryptor,
+                    configRepo,
+                    smtpRepo,
+                    tmpService,
+                    mailerService,
+                    appConfig,
+                ),
+            inject: [
+                CLIENT_REPOSITORY,
+                CLIENT_CREDENTIALS_REPOSITORY,
+                JWT_GENERATOR,
+                ENCRYPTER,
+                NEXLIFY_CONFIGURATION_REPOSITORY,
+                SMTP_SERVER_REPOSITORY,
+                TEMPLATE_SERVICE,
+                MAILER_SERVICE,
+                APP_CONFIG,
+            ],
         },
         {
             provide: AuthAdminUserUseCase,
-            useFactory: (repo, hasher, jwtGen, encrypterGen, appConfig) => new AuthAdminUserUseCase(repo, hasher, jwtGen, encrypterGen, appConfig),
-            inject: [ADMIN_USER_REPOSITORY, PASSWORD_HASHER, JWT_GENERATOR, ENCRYPTER, APP_CONFIG],
+            useFactory: (repo, hasher, jwtGen, encrypterGen, appConfig) =>
+                new AuthAdminUserUseCase(
+                    repo,
+                    hasher,
+                    jwtGen,
+                    encrypterGen,
+                    appConfig,
+                ),
+            inject: [
+                ADMIN_USER_REPOSITORY,
+                PASSWORD_HASHER,
+                JWT_GENERATOR,
+                ENCRYPTER,
+                APP_CONFIG,
+            ],
         },
         {
             provide: UserDataUseCase,
@@ -116,195 +235,439 @@ import { EmailEventSubscriptionsController } from "./email-event-subscriptions.c
         {
             provide: AddSmtpServerUseCase,
             useFactory: (repo) => new AddSmtpServerUseCase(repo),
-            inject: [SMTP_SERVER_REPOSITORY]
-
+            inject: [SMTP_SERVER_REPOSITORY],
         },
         {
             provide: EmailAttemptService,
-            useFactory: (configRepo, smtpRepo, emailsRepo, logsRepo, service, webhookEndpointsRepo, webhookDeliveriesRepo) => new EmailAttemptService(configRepo, smtpRepo, emailsRepo, logsRepo, service, webhookEndpointsRepo, webhookDeliveriesRepo),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, EMAILS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, MAILER_SERVICE, WEBHOOK_ENDPOINTS_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY]
+            useFactory: (
+                configRepo,
+                smtpRepo,
+                emailsRepo,
+                logsRepo,
+                service,
+                webhookEndpointsRepo,
+                webhookDeliveriesRepo,
+            ) =>
+                new EmailAttemptService(
+                    configRepo,
+                    smtpRepo,
+                    emailsRepo,
+                    logsRepo,
+                    service,
+                    webhookEndpointsRepo,
+                    webhookDeliveriesRepo,
+                ),
+            inject: [
+                NEXLIFY_CONFIGURATION_REPOSITORY,
+                SMTP_SERVER_REPOSITORY,
+                EMAILS_REPOSITORY,
+                EMAIL_SEND_LOGS_REPOSITORY,
+                MAILER_SERVICE,
+                WEBHOOK_ENDPOINTS_REPOSITORY,
+                WEBHOOK_DELIVERIES_REPOSITORY,
+            ],
         },
         {
             provide: SendEmailUseCase,
-            useFactory: (configRepo, emailsRepo, attemptService, idGen) => new SendEmailUseCase(configRepo, emailsRepo, attemptService, idGen),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, EMAILS_REPOSITORY, EmailAttemptService, ID_GENERATOR]
+            useFactory: (configRepo, emailsRepo, attemptService, idGen) =>
+                new SendEmailUseCase(
+                    configRepo,
+                    emailsRepo,
+                    attemptService,
+                    idGen,
+                ),
+            inject: [
+                NEXLIFY_CONFIGURATION_REPOSITORY,
+                EMAILS_REPOSITORY,
+                EmailAttemptService,
+                ID_GENERATOR,
+            ],
         },
         {
             provide: InboundEmailUseCase,
-            useFactory: (emailsRepo, attachmentsRepo, idGen, subscriptionsRepo, webhookDeliveriesRepo) => new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen, subscriptionsRepo, webhookDeliveriesRepo),
-            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, ID_GENERATOR, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY, WEBHOOK_DELIVERIES_REPOSITORY]
+            useFactory: (
+                emailsRepo,
+                attachmentsRepo,
+                idGen,
+                subscriptionsRepo,
+                webhookDeliveriesRepo,
+            ) =>
+                new InboundEmailUseCase(
+                    emailsRepo,
+                    attachmentsRepo,
+                    idGen,
+                    subscriptionsRepo,
+                    webhookDeliveriesRepo,
+                ),
+            inject: [
+                EMAILS_REPOSITORY,
+                EMAIL_ATTACHMENTS_REPOSITORY,
+                ID_GENERATOR,
+                EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY,
+                WEBHOOK_DELIVERIES_REPOSITORY,
+            ],
         },
         {
             provide: InboundWebhookSecurityService,
-            useClass: InboundWebhookSecurityService
+            useClass: InboundWebhookSecurityService,
         },
         {
             provide: GetEmailDetailUseCase,
-            useFactory: (emailsRepo, logsRepo, attachmentsRepo) => new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo),
-            inject: [EMAILS_REPOSITORY, EMAIL_SEND_LOGS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY]
+            useFactory: (emailsRepo, logsRepo, attachmentsRepo) =>
+                new GetEmailDetailUseCase(
+                    emailsRepo,
+                    logsRepo,
+                    attachmentsRepo,
+                ),
+            inject: [
+                EMAILS_REPOSITORY,
+                EMAIL_SEND_LOGS_REPOSITORY,
+                EMAIL_ATTACHMENTS_REPOSITORY,
+            ],
         },
         {
             provide: DownloadEmailAttachmentUseCase,
-            useFactory: (emailsRepo, attachmentsRepo) => new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo),
-            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY]
+            useFactory: (emailsRepo, attachmentsRepo) =>
+                new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo),
+            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY],
         },
         {
             provide: GetEmailsUseCase,
             useFactory: (emailsRepo) => new GetEmailsUseCase(emailsRepo),
-            inject: [EMAILS_REPOSITORY]
+            inject: [EMAILS_REPOSITORY],
         },
         {
             provide: RetryEmailUseCase,
-            useFactory: (emailsRepo, attemptService) => new RetryEmailUseCase(emailsRepo, attemptService),
-            inject: [EMAILS_REPOSITORY, EmailAttemptService]
+            useFactory: (emailsRepo, attemptService) =>
+                new RetryEmailUseCase(emailsRepo, attemptService),
+            inject: [EMAILS_REPOSITORY, EmailAttemptService],
         },
         {
             provide: DiffuseEmailUseCase,
-            useFactory: (configRepo, emailsRepo, idGen) => new DiffuseEmailUseCase(configRepo, emailsRepo, idGen),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, EMAILS_REPOSITORY, ID_GENERATOR]
+            useFactory: (configRepo, emailsRepo, idGen) =>
+                new DiffuseEmailUseCase(configRepo, emailsRepo, idGen),
+            inject: [
+                NEXLIFY_CONFIGURATION_REPOSITORY,
+                EMAILS_REPOSITORY,
+                ID_GENERATOR,
+            ],
         },
         {
             provide: RetryDueEmailsUseCase,
-            useFactory: (emailsRepo, attemptService, configRepo) => new RetryDueEmailsUseCase(emailsRepo, attemptService, configRepo),
-            inject: [EMAILS_REPOSITORY, EmailAttemptService, NEXLIFY_CONFIGURATION_REPOSITORY]
+            useFactory: (emailsRepo, attemptService, configRepo) =>
+                new RetryDueEmailsUseCase(
+                    emailsRepo,
+                    attemptService,
+                    configRepo,
+                ),
+            inject: [
+                EMAILS_REPOSITORY,
+                EmailAttemptService,
+                NEXLIFY_CONFIGURATION_REPOSITORY,
+            ],
         },
         {
             provide: EmailRetryScheduler,
             useFactory: (retryDue) => new EmailRetryScheduler(retryDue),
-            inject: [RetryDueEmailsUseCase]
+            inject: [RetryDueEmailsUseCase],
         },
         {
             provide: AddNexlifyConfigurationUseCase,
-            useFactory: (repo, smtpRepo) => new AddNexlifyConfigurationUseCase(repo, smtpRepo),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY]
+            useFactory: (repo, smtpRepo) =>
+                new AddNexlifyConfigurationUseCase(repo, smtpRepo),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY],
         },
         {
             provide: GetNexlifyConfigurationUseCase,
-            useFactory: (configurationRepo, SmtpRepo) => new GetNexlifyConfigurationUseCase(configurationRepo, SmtpRepo),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY]
+            useFactory: (configurationRepo, SmtpRepo) =>
+                new GetNexlifyConfigurationUseCase(configurationRepo, SmtpRepo),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY],
         },
         {
             provide: UpdateNexlifyConfigurationUseCase,
             useFactory: (repo) => new UpdateNexlifyConfigurationUseCase(repo),
-            inject: [NEXLIFY_CONFIGURATION_REPOSITORY]
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY],
         },
         {
             provide: VerifyCredentialAssignmentTokenUseCase,
-            useFactory: (repo, jwtGen, encryptor, appConfig) => new VerifyCredentialAssignmentTokenUseCase(repo, jwtGen, encryptor, appConfig),
-            inject: [CLIENT_CREDENTIALS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, APP_CONFIG]
+            useFactory: (repo, jwtGen, encryptor, appConfig) =>
+                new VerifyCredentialAssignmentTokenUseCase(
+                    repo,
+                    jwtGen,
+                    encryptor,
+                    appConfig,
+                ),
+            inject: [
+                CLIENT_CREDENTIALS_REPOSITORY,
+                JWT_GENERATOR,
+                ENCRYPTER,
+                APP_CONFIG,
+            ],
         },
         {
             provide: AssignCredentialsUseCase,
-            useFactory: (cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, assignHasGen, passHasher, appConfig) => new AssignCredentialsUseCase(cliRepo, credsRepo, keysRepo, keysLogRepo, jwtGen, encrypterGen, assignHasGen, passHasher, appConfig),
-            inject: [CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY, NEXLIFY_KEYS_REPOSITORY, NEXLIFY_KEYS_LOGS_REPOSITORY, JWT_GENERATOR, ENCRYPTER, HASH_GENERATOR, PASSWORD_HASHER, APP_CONFIG]
+            useFactory: (
+                cliRepo,
+                credsRepo,
+                keysRepo,
+                keysLogRepo,
+                jwtGen,
+                encrypterGen,
+                assignHasGen,
+                passHasher,
+                appConfig,
+            ) =>
+                new AssignCredentialsUseCase(
+                    cliRepo,
+                    credsRepo,
+                    keysRepo,
+                    keysLogRepo,
+                    jwtGen,
+                    encrypterGen,
+                    assignHasGen,
+                    passHasher,
+                    appConfig,
+                ),
+            inject: [
+                CLIENT_REPOSITORY,
+                CLIENT_CREDENTIALS_REPOSITORY,
+                NEXLIFY_KEYS_REPOSITORY,
+                NEXLIFY_KEYS_LOGS_REPOSITORY,
+                JWT_GENERATOR,
+                ENCRYPTER,
+                HASH_GENERATOR,
+                PASSWORD_HASHER,
+                APP_CONFIG,
+            ],
         },
         {
             provide: SignInUseCase,
-            useFactory: (credsRepo, cliRepo, hasher, jwtGen, encrypterGen, appConfig) => new SignInUseCase(credsRepo, cliRepo, hasher, jwtGen, encrypterGen, appConfig),
-            inject: [CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, PASSWORD_HASHER, JWT_GENERATOR, ENCRYPTER, APP_CONFIG]
+            useFactory: (
+                credsRepo,
+                cliRepo,
+                hasher,
+                jwtGen,
+                encrypterGen,
+                appConfig,
+            ) =>
+                new SignInUseCase(
+                    credsRepo,
+                    cliRepo,
+                    hasher,
+                    jwtGen,
+                    encrypterGen,
+                    appConfig,
+                ),
+            inject: [
+                CLIENT_CREDENTIALS_REPOSITORY,
+                CLIENT_REPOSITORY,
+                PASSWORD_HASHER,
+                JWT_GENERATOR,
+                ENCRYPTER,
+                APP_CONFIG,
+            ],
         },
         {
             provide: ClientDataUseCase,
-            useFactory: (context, cliRepo, cliCredsRepo) => new ClientDataUseCase(context, cliRepo, cliCredsRepo),
-            inject: [REQUEST_CONTEXT, CLIENT_REPOSITORY, CLIENT_CREDENTIALS_REPOSITORY]
+            useFactory: (context, cliRepo, cliCredsRepo) =>
+                new ClientDataUseCase(context, cliRepo, cliCredsRepo),
+            inject: [
+                REQUEST_CONTEXT,
+                CLIENT_REPOSITORY,
+                CLIENT_CREDENTIALS_REPOSITORY,
+            ],
         },
         {
             provide: GetAllClientsUseCase,
-            useFactory: (repo, idTypeRepo) => new GetAllClientsUseCase(repo, idTypeRepo),
-            inject: [CLIENT_REPOSITORY, ID_TYPE_REPOSITORY]
+            useFactory: (repo, idTypeRepo) =>
+                new GetAllClientsUseCase(repo, idTypeRepo),
+            inject: [CLIENT_REPOSITORY, ID_TYPE_REPOSITORY],
+        },
+        {
+            provide: ClientDetailUseCase,
+            useFactory: (cliRepo, cliCredsRepo, idTypeRepo) =>
+                new ClientDetailUseCase(cliRepo, cliCredsRepo, idTypeRepo),
+            inject: [
+                CLIENT_REPOSITORY,
+                CLIENT_CREDENTIALS_REPOSITORY,
+                ID_TYPE_REPOSITORY,
+            ],
         },
         {
             provide: UpdateClientUseCase,
-            useFactory: (context, cliRepo) => new UpdateClientUseCase(context, cliRepo),
-            inject: [REQUEST_CONTEXT, CLIENT_REPOSITORY]
+            useFactory: (context, cliRepo) =>
+                new UpdateClientUseCase(context, cliRepo),
+            inject: [REQUEST_CONTEXT, CLIENT_REPOSITORY],
         },
         {
             provide: UpdateClientStateUseCase,
-            useFactory: (context, cliRepo) => new UpdateClientStateUseCase(context, cliRepo),
-            inject: [REQUEST_CONTEXT, CLIENT_REPOSITORY]
+            useFactory: (context, cliRepo) =>
+                new UpdateClientStateUseCase(context, cliRepo),
+            inject: [REQUEST_CONTEXT, CLIENT_REPOSITORY],
         },
         {
             provide: ForgotPasswordUseCase,
-            useFactory: (credsRepo, cliRepo, jwtGen, encryptor, configRepo, smtpRepo, mailerService, appConfig) => new ForgotPasswordUseCase(credsRepo, cliRepo, jwtGen, encryptor, configRepo, smtpRepo, mailerService, appConfig),
-            inject: [CLIENT_CREDENTIALS_REPOSITORY, CLIENT_REPOSITORY, JWT_GENERATOR, ENCRYPTER, NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY, MAILER_SERVICE, APP_CONFIG]
+            useFactory: (
+                credsRepo,
+                cliRepo,
+                jwtGen,
+                encryptor,
+                configRepo,
+                smtpRepo,
+                mailerService,
+                appConfig,
+            ) =>
+                new ForgotPasswordUseCase(
+                    credsRepo,
+                    cliRepo,
+                    jwtGen,
+                    encryptor,
+                    configRepo,
+                    smtpRepo,
+                    mailerService,
+                    appConfig,
+                ),
+            inject: [
+                CLIENT_CREDENTIALS_REPOSITORY,
+                CLIENT_REPOSITORY,
+                JWT_GENERATOR,
+                ENCRYPTER,
+                NEXLIFY_CONFIGURATION_REPOSITORY,
+                SMTP_SERVER_REPOSITORY,
+                MAILER_SERVICE,
+                APP_CONFIG,
+            ],
         },
         {
             provide: ResetPasswordUseCase,
-            useFactory: (encryptor, jwtGen, passHasher, credsRepo, appConfig) => new ResetPasswordUseCase(encryptor, jwtGen, passHasher, credsRepo, appConfig),
-            inject: [ENCRYPTER, JWT_GENERATOR, PASSWORD_HASHER, CLIENT_CREDENTIALS_REPOSITORY, APP_CONFIG]
+            useFactory: (encryptor, jwtGen, passHasher, credsRepo, appConfig) =>
+                new ResetPasswordUseCase(
+                    encryptor,
+                    jwtGen,
+                    passHasher,
+                    credsRepo,
+                    appConfig,
+                ),
+            inject: [
+                ENCRYPTER,
+                JWT_GENERATOR,
+                PASSWORD_HASHER,
+                CLIENT_CREDENTIALS_REPOSITORY,
+                APP_CONFIG,
+            ],
         },
         {
             provide: IdTypesUseCase,
             useFactory: (repo) => new IdTypesUseCase(repo),
-            inject: [ID_TYPE_REPOSITORY]
+            inject: [ID_TYPE_REPOSITORY],
         },
         {
             provide: CreateUserUseCase,
-            useFactory: (context, usersRepo) => new CreateUserUseCase(context, usersRepo),
-            inject: [REQUEST_CONTEXT, USERS_REPOSITORY]
+            useFactory: (context, usersRepo) =>
+                new CreateUserUseCase(context, usersRepo),
+            inject: [REQUEST_CONTEXT, USERS_REPOSITORY],
         },
         {
             provide: GetUsersUseCase,
-            useFactory: (context, usersRepo) => new GetUsersUseCase(context, usersRepo),
-            inject: [REQUEST_CONTEXT, USERS_REPOSITORY]
+            useFactory: (context, usersRepo) =>
+                new GetUsersUseCase(context, usersRepo),
+            inject: [REQUEST_CONTEXT, USERS_REPOSITORY],
         },
         {
             provide: UpdateUserUseCase,
-            useFactory: (context, usersRepo) => new UpdateUserUseCase(context, usersRepo),
-            inject: [REQUEST_CONTEXT, USERS_REPOSITORY]
+            useFactory: (context, usersRepo) =>
+                new UpdateUserUseCase(context, usersRepo),
+            inject: [REQUEST_CONTEXT, USERS_REPOSITORY],
         },
         {
             provide: CreateTemplateUseCase,
-            useFactory: (context, templatesRepo) => new CreateTemplateUseCase(context, templatesRepo),
-            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY]
+            useFactory: (context, templatesRepo) =>
+                new CreateTemplateUseCase(context, templatesRepo),
+            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY],
         },
         {
             provide: GetTemplatesUseCase,
-            useFactory: (context, templatesRepo) => new GetTemplatesUseCase(context, templatesRepo),
-            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY]
+            useFactory: (context, templatesRepo) =>
+                new GetTemplatesUseCase(context, templatesRepo),
+            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY],
         },
         {
             provide: UpdateTemplateUseCase,
-            useFactory: (context, templatesRepo) => new UpdateTemplateUseCase(context, templatesRepo),
-            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY]
+            useFactory: (context, templatesRepo) =>
+                new UpdateTemplateUseCase(context, templatesRepo),
+            inject: [REQUEST_CONTEXT, TEMPLATES_REPOSITORY],
         },
         {
             provide: RegisterWebhookEndpointUseCase,
-            useFactory: (context, webhookEndpointsRepo) => new RegisterWebhookEndpointUseCase(context, webhookEndpointsRepo),
-            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY]
+            useFactory: (context, webhookEndpointsRepo) =>
+                new RegisterWebhookEndpointUseCase(
+                    context,
+                    webhookEndpointsRepo,
+                ),
+            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY],
         },
         {
             provide: ListMyWebhookEndpointsUseCase,
-            useFactory: (context, webhookEndpointsRepo) => new ListMyWebhookEndpointsUseCase(context, webhookEndpointsRepo),
-            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY]
+            useFactory: (context, webhookEndpointsRepo) =>
+                new ListMyWebhookEndpointsUseCase(
+                    context,
+                    webhookEndpointsRepo,
+                ),
+            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY],
         },
         {
             provide: UpdateWebhookEndpointUseCase,
-            useFactory: (context, webhookEndpointsRepo) => new UpdateWebhookEndpointUseCase(context, webhookEndpointsRepo),
-            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY]
+            useFactory: (context, webhookEndpointsRepo) =>
+                new UpdateWebhookEndpointUseCase(context, webhookEndpointsRepo),
+            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY],
         },
         {
             provide: CreateSubscriptionUseCase,
-            useFactory: (context, webhookEndpointsRepo, subscriptionsRepo) => new CreateSubscriptionUseCase(context, webhookEndpointsRepo, subscriptionsRepo),
-            inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY]
+            useFactory: (context, webhookEndpointsRepo, subscriptionsRepo) =>
+                new CreateSubscriptionUseCase(
+                    context,
+                    webhookEndpointsRepo,
+                    subscriptionsRepo,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                WEBHOOK_ENDPOINTS_REPOSITORY,
+                EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY,
+            ],
         },
         {
             provide: GetMySubscriptionsUseCase,
-            useFactory: (context, subscriptionsRepo) => new GetMySubscriptionsUseCase(context, subscriptionsRepo),
-            inject: [REQUEST_CONTEXT, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY]
+            useFactory: (context, subscriptionsRepo) =>
+                new GetMySubscriptionsUseCase(context, subscriptionsRepo),
+            inject: [REQUEST_CONTEXT, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY],
         },
         {
             provide: UpdateSubscriptionUseCase,
-            useFactory: (context, subscriptionsRepo) => new UpdateSubscriptionUseCase(context, subscriptionsRepo),
-            inject: [REQUEST_CONTEXT, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY]
+            useFactory: (context, subscriptionsRepo) =>
+                new UpdateSubscriptionUseCase(context, subscriptionsRepo),
+            inject: [REQUEST_CONTEXT, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY],
         },
         {
             provide: WebhookDeliveryScheduler,
-            useFactory: (webhookDeliveriesRepo, webhookEndpointsRepo, emailsRepo, httpDeliveryService) => new WebhookDeliveryScheduler(webhookDeliveriesRepo, webhookEndpointsRepo, emailsRepo, httpDeliveryService),
-            inject: [WEBHOOK_DELIVERIES_REPOSITORY, WEBHOOK_ENDPOINTS_REPOSITORY, EMAILS_REPOSITORY, HTTP_DELIVERY_SERVICE]
-        }
-
-    ]
+            useFactory: (
+                webhookDeliveriesRepo,
+                webhookEndpointsRepo,
+                emailsRepo,
+                httpDeliveryService,
+            ) =>
+                new WebhookDeliveryScheduler(
+                    webhookDeliveriesRepo,
+                    webhookEndpointsRepo,
+                    emailsRepo,
+                    httpDeliveryService,
+                ),
+            inject: [
+                WEBHOOK_DELIVERIES_REPOSITORY,
+                WEBHOOK_ENDPOINTS_REPOSITORY,
+                EMAILS_REPOSITORY,
+                HTTP_DELIVERY_SERVICE,
+            ],
+        },
+    ],
 })
-
-export class ControllerModule { }
+export class ControllerModule {}

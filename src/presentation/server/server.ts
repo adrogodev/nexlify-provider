@@ -44,10 +44,15 @@ export class Server {
                 forbidNonWhitelisted: true,
                 transform: true,
                 exceptionFactory: (errors) => {
-                    const formatted = errors.reduce<Record<string, string[]>>((acc, error) => {
-                        acc[error.property] = Object.values(error.constraints ?? {});
-                        return acc;
-                    }, {});
+                    const formatted = errors.reduce<Record<string, string[]>>(
+                        (acc, error) => {
+                            acc[error.property] = Object.values(
+                                error.constraints ?? {},
+                            );
+                            return acc;
+                        },
+                        {},
+                    );
                     return new ValidationException(formatted);
                 },
             }),
