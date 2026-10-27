@@ -31,8 +31,26 @@ export class AuthenticatedUserSecurity {
 
         const content = TokenInfo.create((tokenDecode.data as JWTPayload<TokenInfo>).payload);
 
+        // Role discrimination by the is_admin claim (design fix for the
+        // admin/clients id collision): an admin JWT NEVER resolves against the
+        // clients table and vice versa, so a shared numeric index can no longer
+        // misclassify a session or block it with the other table's state.
+        if (content.is_admin === true) {
+            const user = await this._adminUserRepository.getByIdAsync(BigInt(content.id_user));
+            if (!user) throw new UnauthorizedException('No autenticado');
+            if (!user.is_active) throw new UnauthorizedException('Usuario inactivo');
+
+            if (ip_connection !== content.ip_connection) {
+                throw new UnauthorizedException();
+            }
+
+            return { auth_data: content };
+        }
+
         const client = await this._clientRepository.getByIdAsync(BigInt(content.id_user));
         if (client) {
+            // Only clients in their lifecycle share this path; admins never land
+            // here because of the claim check above.
             if (client.id_client_state !== ClientStateEnum.ACTIVO) {
                 throw new UnauthorizedException('Cliente inactivo');
             }
@@ -44,14 +62,6 @@ export class AuthenticatedUserSecurity {
             return { auth_data: content };
         }
 
-        const user = await this._adminUserRepository.getByIdAsync(BigInt(content.id_user));
-        if (!user) throw new UnauthorizedException('No autenticado');
-        if (!user.is_active) throw new UnauthorizedException('Usuario inactivo');
-
-        if (ip_connection !== content.ip_connection) {
-            throw new UnauthorizedException();
-        }
-
-        return { auth_data: content };
+        throw new UnauthorizedException('No autenticado');
     }
 }
