@@ -4,8 +4,8 @@ import { ActionNotAllowedException } from "src/core/domain/exceptions";
 import { UseCase, UseCaseArgs } from "src/core/domain/models/use-case.model";
 
 export interface GeneratedNexlifyKeyDTO {
-    id_nexlify_key: bigint;
-    id_client: bigint;
+    id_nexlify_key: number;
+    id_client: number;
     /** The raw API key. Returned exactly once, never stored in plain text. */
     api_key: string;
     created_at: Date;
@@ -47,8 +47,8 @@ export class GenerateNexlifyKeyUseCase implements UseCase<{ id_client?: number |
         });
 
         return {
-            id_nexlify_key: created.id_nexlify_key,
-            id_client,
+            id_nexlify_key: Number(created.id_nexlify_key),
+            id_client: Number(id_client),
             api_key: rawKey,
             created_at: new Date(),
         };

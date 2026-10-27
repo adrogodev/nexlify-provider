@@ -7,6 +7,7 @@ import {
     Post,
     Put,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
 import {
     GenerateNexlifyKeyUseCase,
@@ -17,8 +18,10 @@ import { OwnedNexlifyKeyDTO } from 'src/core/application/use-cases/nexlify-keys/
 import { RevokeNexlifyKeyUseCase } from 'src/core/application/use-cases/nexlify-keys/revoke-nexlify-key.usecase';
 import { ClientResponse } from 'src/core/domain/models';
 import { AuthGuard } from 'src/infrastructure/guards';
+import { ContextInterceptor } from 'src/infrastructure/interceptors/context.interceptor';
 
 @UseGuards(AuthGuard)
+@UseInterceptors(ContextInterceptor)
 @Controller('api/nexlify-keys')
 export class NexlifyKeysController {
     constructor(
