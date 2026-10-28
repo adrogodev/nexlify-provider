@@ -35,7 +35,31 @@ export class Server {
     }
 
     #registerMiddlewares(): void {
-        this.#app!.use(helmet());
+        // helmet defaults ship CSP script-src:'self', which blocks the Scalar
+        // reference UI (its runtime loads from the jsdelivr CDN). The API itself
+        // serves no first-party HTML besides /api/docs, so we widen ONLY the
+        // directives the Scalar runtime needs (module scripts, web worker blob,
+        // CDN connects) instead of disabling CSP for the whole app.
+        // helmet@8 default directives are kebab-case: replace those keys first
+        // or it throws a duplicate-directive error.
+        const scalarCsBp = {
+            'script-src': ["'self'", 'https://cdn.jsdelivr.net'],
+            'worker-src': ["'self'", 'blob:'],
+            'connect-src': ["'self'", 'https://cdn.jsdelivr.net'],
+            'style-src': ["'self'", 'https://cdn.jsdelivr.net', "'unsafe-inline'", 'https:'],
+            'font-src': ["'self'", 'https://cdn.jsdelivr.net', 'https:', 'data:'],
+            'img-src': ["'self'", 'https://cdn.jsdelivr.net', 'data:', 'https:'],
+        };
+        const overridden = ['script-src', 'worker-src', 'connect-src', 'style-src', 'font-src', 'img-src'];
+        const defaults = helmet.contentSecurityPolicy.getDefaultDirectives();
+        const base = Object.fromEntries(Object.entries(defaults).filter(([key]) => !overridden.includes(key)));
+        this.#app!.use(
+            helmet({
+                contentSecurityPolicy: {
+                    directives: { ...base, ...scalarCsBp },
+                },
+            }),
+        );
         this.#app!.use(cors());
     }
 
