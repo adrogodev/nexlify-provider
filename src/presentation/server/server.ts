@@ -35,28 +35,18 @@ export class Server {
     }
 
     #registerMiddlewares(): void {
-        // helmet defaults ship CSP script-src:'self', which blocks the Scalar
-        // reference UI (its runtime loads from the jsdelivr CDN). The API itself
-        // serves no first-party HTML besides /api/docs, so we widen ONLY the
-        // directives the Scalar runtime needs (module scripts, web worker blob,
-        // CDN connects) instead of disabling CSP for the whole app.
-        // helmet@8 default directives are kebab-case: replace those keys first
-        // or it throws a duplicate-directive error.
-        const scalarCsBp = {
-            'script-src': ["'self'", 'https://cdn.jsdelivr.net'],
-            'worker-src': ["'self'", 'blob:'],
-            'connect-src': ["'self'", 'https://cdn.jsdelivr.net'],
-            'style-src': ["'self'", 'https://cdn.jsdelivr.net', "'unsafe-inline'", 'https:'],
-            'font-src': ["'self'", 'https://cdn.jsdelivr.net', 'https:', 'data:'],
-            'img-src': ["'self'", 'https://cdn.jsdelivr.net', 'data:', 'https:'],
-        };
-        const overridden = ['script-src', 'worker-src', 'connect-src', 'style-src', 'font-src', 'img-src'];
-        const defaults = helmet.contentSecurityPolicy.getDefaultDirectives();
-        const base = Object.fromEntries(Object.entries(defaults).filter(([key]) => !overridden.includes(key)));
+        // Scalar's reference UI is self-hosted now: the UMD standalone bundle is
+        // served from our own origin ('/scalar-runtime/standalone.js'), so the
+        // CSP stays default ('self') plus a blob worker for the search — no CDN.
+        // helmet defaults would otherwise block the old CDN import; the UMD build
+        // (window.Scalar.createApiReference) needs no module imports.
         this.#app!.use(
             helmet({
                 contentSecurityPolicy: {
-                    directives: { ...base, ...scalarCsBp },
+                    directives: {
+                        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+                        'worker-src': ["'self'", 'blob:'],
+                    },
                 },
             }),
         );
@@ -87,11 +77,13 @@ export class Server {
         );
     }
 
-    // Pure-Scalar documentation: the OpenAPI contract is a versioned JSON file
-    // owned by the repo (docs/openapi.json) — nothing is generated from
-    // decorators. /api/docs renders the interactive reference; /api/docs-json
-    // exposes the same document for Postman/Scalar Cloud imports.
-    async #registerDocs(): Promise<void> {
+    // Pure-Scalar documentation, FULLY self-hosted: the OpenAPI contract is a
+    // versioned JSON file owned by the repo (docs/openapi.json) and the Scalar
+    // runtime is the UMD standalone build shipped in our node_modules, served
+    // from our own origin — the browser never touches a CDN.
+    // /api/docs renders the interactive reference; /api/docs-json exposes the
+    // same document for Postman/Scalar Cloud imports.
+    #registerDocs(): void {
         const specPath = path.join(process.cwd(), 'docs', 'openapi.json');
         let spec: Record<string, unknown>;
         try {
@@ -101,6 +93,26 @@ export class Server {
             return;
         }
 
+        const runtimePath = path.join(process.cwd(), 'node_modules', '@scalar', 'api-reference', 'dist', 'browser', 'standalone.js');
+        if (!fs.existsSync(runtimePath)) {
+            colors.error('No se encontro el bundle Standalone de Scalar (@scalar/api-reference) — UI deshabilitada', { dateShow: false });
+            return;
+        }
+
+        // Single self-hosted file: <script src> + window.Scalar global (UMD).
+        this.#app!.use('/scalar-runtime', (req: unknown, res: { sendFile(absolutePath: string, cb?: (err?: unknown) => void): void }, next: () => void) => {
+            const raw = (req as { method?: string; path?: string }).path ?? '';
+            if ((req as { method?: string }).method !== 'GET' && (req as { method?: string }).method !== 'HEAD') {
+                next();
+                return;
+            }
+            if (raw === '/standalone.js') {
+                res.sendFile(runtimePath);
+                return;
+            }
+            next();
+        });
+
         this.#app!.use('/api/docs-json', (_req: unknown, res: { json(payload: unknown): void }) => {
             res.json(spec);
         });
@@ -108,6 +120,10 @@ export class Server {
         this.#app!.use(
             '/api/docs',
             apiReference({
+                // A custom cdn makes the middleware emit the UMD bundle path
+                // (<script src=...> + window.Scalar global) instead of the CDN
+                // module import — here it points at our own origin.
+                cdn: '/scalar-runtime/standalone.js',
                 content: spec,
                 theme: 'purple',
                 pageTitle: 'nexlify-provider API Reference',
