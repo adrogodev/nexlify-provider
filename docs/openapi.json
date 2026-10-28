@@ -1,0 +1,346 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "nexlify-provider API",
+    "description": "Provider HTTP de la plataforma Nexlify. Documentación mantenida a mano (contrato versionado en docs/openapi.json) — es la ÚNICA fuente de verdad del API surface, no hay generación automática.\n\nAutenticación: Bearer JWT (sesiones admin y client) o X-API-Key (clientes programáticos) según el endpoint. La sesión de admin queda discriminada por el claim `is_admin` del JWT y nunca colisiona con la tabla clients.",
+    "version": "1.0.0",
+    "contact": { "name": "Nexlify Platform", "url": "https://localhost:4200" }
+  },
+  "servers": [
+    { "url": "http://localhost:3600", "description": "Desarrollo local" }
+  ],
+  "tags": [
+    { "name": "admin-user", "description": "Autenticación y sesión de administradores de plataforma" },
+    { "name": "clients", "description": "Onboarding, ciclo de vida y sesión de clientes" },
+    { "name": "email", "description": "Envío, difusión, auditoría y recepción de correos" },
+    { "name": "email-events", "description": "Suscripciones a eventos de correo con gating de campos" },
+    { "name": "webhooks", "description": "Endpoints webhook de clientes para notificaciones de estado" },
+    { "name": "nexlify-keys", "description": "API keys de clientes programáticos" },
+    { "name": "users", "description": "Usuarios finales bajo un cliente" },
+    { "name": "templates", "description": "Plantillas de correo" },
+    { "name": "configuration", "description": "Configuración global de la plataforma" },
+    { "name": "smtp-server", "description": "Catálogo de servidores SMTP" },
+    { "name": "master", "description": "Datos maestros" },
+    { "name": "verify", "description": "Health check y tokens de asignación" }
+  ],
+  "paths": {
+    "/api/admin-user/auth": {
+      "post": {
+        "tags": ["admin-user"], "summary": "Login de administrador", "security": [],
+        "description": "Devuelve JWT (is_admin: true, con ip_connection de la solicitud). Recuerda: la sesión de admin solo valida contra admin_user.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["username", "password"], "properties": { "username": { "type": "string", "example": "admin" }, "password": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "ok + AuthDto { token, ip_connection }" } }
+      }
+    },
+    "/api/admin-user/data": {
+      "get": {
+        "tags": ["admin-user"], "summary": "Datos de la sesión admin actual", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Datos del admin autenticado desde el contexto de AsyncLocalStorage" } }
+      }
+    },
+    "/api/client/register": {
+      "post": {
+        "tags": ["clients"], "summary": "Registrar un cliente y enviar por email el link de asignación", "security": [{ "bearerAuth": [] }],
+        "description": "Requiere SmtpServerExistsGuard (configuración + servidor SMTP existentes). Envía por correo el link con el token de asignación de credenciales.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "id_type": { "type": "integer" }, "id_number": { "type": "string" }, "name": { "type": "string" }, "email": { "type": "string" }, "cell_callsign": { "type": "string" }, "cell_phone": { "type": "string", "description": "Dial string de números par (varios teléfonos). Enviar como texto plano en minúsculas." } } } } } },
+        "responses": { "200": { "description": "Cliente creado (estado HABILITACION_PENDIENTE) y correo de asignación enviado" } }
+      }
+    },
+    "/api/client/assign-credentials": {
+      "post": {
+        "tags": ["clients"], "summary": "Asignar usuario/contraseña desde el token recibido por email", "security": [],
+        "description": "Header requerido: `x-assign-creds-token` (token encriptado del email). Activa el cliente (ACTIVO) y emite su API key (hasheada SHA-256) con log de auditoría.",
+        "parameters": [ { "name": "x-assign-creds-token", "in": "header", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["username", "password"], "properties": { "username": { "type": "string" }, "password": { "type": "string", "description": "bcrypt (cost 12) al server" } } } } } },
+        "responses": { "200": { "description": "Credenciales asignadas y cliente activado" } }
+      }
+    },
+    "/api/client/sign-in": {
+      "post": {
+        "tags": ["clients"], "summary": "Login de cliente", "security": [],
+        "description": "JWT con is_admin:false y binding de IP. El token se guarda cifrado (AES-GCM) en client_credentials. Password verificada con bcrypt (los hashes legacy SHA-256 se migran automáticamente al primer login exitoso).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["username", "password"], "properties": { "username": { "type": "string" }, "password": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "AuthDto { token, ip_connection }" }, "403": { "description": "Credenciales inválidas o cliente inactivo" } }
+      }
+    },
+    "/api/client/get-clients": {
+      "get": {
+        "tags": ["clients"], "summary": "Listado paginado de clientes", "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1 } }, { "name": "limit", "in": "query", "schema": { "type": "integer" } }, { "name": "state", "in": "query", "schema": { "type": "integer", "description": "1 ACTIVO, 2 INACTIVO, 3 HABILITACION_PENDIENTE" } }, { "name": "search", "in": "query", "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "PaginateBaseDTO<AllClientsInfoDTO[]>" } }
+      }
+    },
+    "/api/client/detail": {
+      "get": {
+        "tags": ["clients"], "summary": "Detalle de un cliente", "security": [{ "bearerAuth": [] }],
+        "description": "Admin puede consultar cualquiera; un cliente solo a sí mismo (otros devuelven 404 sin revelar existencia).",
+        "parameters": [ { "name": "id_client", "in": "query", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "ClientDetailDTO" }, "404": { "description": "No existe o no es propio" } }
+      }
+    },
+    "/api/client/data": {
+      "get": {
+        "tags": ["clients"], "summary": "Datos de la sesión client actual", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "ClientDataDTO" } }
+      }
+    },
+    "/api/client/update": {
+      "put": {
+        "tags": ["clients"], "summary": "Actualizar datos de contacto de un cliente", "security": [{ "bearerAuth": [] }],
+        "description": "No-admin modifica únicamente su propio cliente; admin pasa id_client en el body.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "id_client": { "type": "integer", "description": "Solo admin" }, "email": { "type": "string" }, "cell_callsign": { "type": "string" }, "cell_phone": { "type": "string" }, "name": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "true" } }
+      }
+    },
+    "/api/client/state": {
+      "put": {
+        "tags": ["clients"], "summary": "Suspender / reactivar cliente (solo admin)", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["id_client", "id_client_state"], "properties": { "id_client": { "type": "integer" }, "id_client_state": { "type": "integer", "enum": [1, 2, 3], "description": "1 ACTIVO, 2 INACTIVO, 3 HABILITACION_PENDIENTE" } } } } } },
+        "responses": { "200": { "description": "true" }, "404": { "description": "Cliente no encontrado" } }
+      }
+    },
+    "/api/client/forgot-password": {
+      "post": {
+        "tags": ["clients"], "summary": "Solicitar recuperación de contraseña", "security": [],
+        "description": "Respuesta SIEMPRE genérica ('Si el usuario existe se enviara un email'): jamás revela existencia. Crea JWT de recuperación HS512 (30m), lo guarda CIFRADO en client_credentials.recovery_token y envía un email con el link (PLATFORM_URL + token).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["username"], "properties": { "username": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "true (genérico)" } }
+      }
+    },
+    "/api/client/reset-password": {
+      "post": {
+        "tags": ["clients"], "summary": "Restablecer contraseña con el token cifrado", "security": [],
+        "description": "Token cifrado = exactamente el valor guardado en recovery_token (uso único). Al cambiar, la contraseña se hashea bcrypt y se limpia el token. Los hashes de sesión previos quedan invalidados al requerir nuevo login.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["recovery_token", "password"], "properties": { "recovery_token": { "type": "string" }, "password": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "true" }, "403": { "description": "Token inválido/expirado/ya usado" } }
+      }
+    },
+    "/api/smtp-server/add": {
+      "post": {
+        "tags": ["smtp-server"], "summary": "Agregar servidor SMTP al catálogo", "security": [{ "bearerAuth": [] }],
+        "description": "Requiere ConfigurationExistsGuard (la configuración de plataforma debe existir antes).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["provider", "host", "port"], "properties": { "provider": { "type": "string" }, "host": { "type": "string" }, "port": { "type": "integer" }, "auth_type": { "type": "string", "default": "basic" } } } } } },
+        "responses": { "200": { "description": "true" } }
+      }
+    },
+    "/api/email/send": {
+      "post": {
+        "tags": ["email"], "summary": "Enviar un correo", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "AuthGuard DUAL: Bearer JWT **o** X-API-Key. Requiere ConfigurationExistsGuard. Persiste el email (QUEUED → uuid v4 generado por Postgres + NX-short code), intenta enviar con el SMTP de la configuración global, registra log por intento (SUCCESS/WARNING/ERROR) y entra a la máquina de estados con reintentos automáticos (max_retries, retry_interval_seconds).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["from", "to", "subject"], "properties": { "from": { "type": "string", "format": "email" }, "to": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] }, "subject": { "type": "string" }, "html": { "type": "string" }, "text": { "type": "string" }, "attachments": { "type": "array", "items": { "$ref": "#/components/schemas/EmailAttachment" } } } } } } },
+        "responses": { "200": { "description": "SendEmailResultDTO { email_uuid (v4), short_code, state, attempts }" }, "403": { "description": "No autenticado o sin configuración" } }
+      }
+    },
+    "/api/email/diffuse": {
+      "post": {
+        "tags": ["email"], "summary": "Difusión masiva (1–500 destinatarios)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Autenticación DUAL. Verifica el presupuesto diario restante (daily_send_limit − enviados del día) ANTES de persistir; encola cada fila QUEUED y el scheduler los saca FIFO respetando el presupuesto.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["to", "subject"], "properties": { "to": { "type": "array", "items": { "type": "string", "format": "email" }, "minItems": 1, "maxItems": 500 }, "subject": { "type": "string" }, "html": { "type": "string" }, "text": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "{ queued, short_codes: string[] }", "content": { "application/json": { "schema": { "type": "object", "properties": { "queued": { "type": "integer" }, "short_codes": { "type": "array", "items": { "type": "string" } } } } } } }, "4xx": { "description": "Presupuesto diario insuficiente o error de validación" } }
+      }
+    },
+    "/api/email": {
+      "get": {
+        "tags": ["email"], "summary": "Listado paginado de correos", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "parameters": [ { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["QUEUED", "SENDING", "SENT", "WARNING", "FAILED", "RETRYING"] } }, { "name": "id_client", "in": "query", "schema": { "type": "integer" } }, { "name": "from_date", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "to_date", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "short_code", "in": "query", "schema": { "type": "string" } }, { "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "maximum": 100 } } ],
+        "responses": { "200": { "description": "PaginateBaseDTO<EmailListItemDTO[]>" } }
+      }
+    },
+    "/api/email/{emailId}": {
+      "get": {
+        "tags": ["email"], "summary": "Detalle de un correo con historial de intentos", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "`emailId` acepta el uuid v4 O el short code (NX-XXXXXXX). Incluye `direction` (SENT/RECEIVED), `parent_email_uuid` (nombre del hilo) y metadata de adjuntos.",
+        "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string", "description": "UUID v4 o short code NX-…" } } ],
+        "responses": { "200": { "description": "EmailDetailDTO (logs por intento)" }, "404": { "description": "No existe" } }
+      }
+    },
+    "/api/email/{emailId}/retry": {
+      "post": {
+        "tags": ["email"], "summary": "Reintento de un email puntual (un click)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "POST con el id del correo en el path. Nota: no re-chequea el presupuesto diario (decisión de diseño).",
+        "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "SendEmailResultDTO" }, "404": { "description": "No existe" } }
+      }
+    },
+    "/api/email/{emailId}/attachments/{attachmentIndex}": {
+      "get": {
+        "tags": ["email"], "summary": "Descargar base64 de un adjunto", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "attachmentIndex", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "{ filename, content_type, size_bytes, content_base64 }" }, "404": { "description": "Índice fuera de rango" } }
+      }
+    },
+    "/api/email/inbound": {
+      "post": {
+        "tags": ["email"], "summary": "Ingesta de respuestas (webhook de proveedor de entrada)", "security": [],
+        "description": "Endpoint público de firma: header `X-Nexlify-Inbound-Signature` = HMAC-SHA256 del body crudo con `INBOUND_WEBHOOK_SECRET` (env). Threading por In-Reply-To/References hacia message_id persistido; ingestion idempotente por message_id; adjuntos ≤ 5MB con aislamiento por ítem; los fallos de negocio (no matchear parent) NO cortan la respuesta. Cuando el reply enhebra con un email de un cliente, se encola una entrega webhook por suscripción RECEIVED_REPLY activa (payload con SOLO los campos habilitados).",
+        "parameters": [ { "name": "X-Nexlify-Inbound-Signature", "in": "header", "required": true, "schema": { "type": "string", "description": "hex HMAC-SHA256(rawBody, INBOUND_WEBHOOK_SECRET)" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["sender"], "properties": { "sender": { "type": "string" }, "message_id": { "type": "string" }, "in_reply_to_message_id": { "type": "string" }, "references": { "type": "string" }, "subject": { "type": "string" }, "body_text": { "type": "string" }, "body_html": { "type": "string" }, "received_at": { "type": "string", "format": "date-time" }, "attachments": { "type": "array", "items": { "type": "object", "required": ["filename", "content"], "properties": { "filename": { "type": "string" }, "contentType": { "type": "string" }, "size": { "type": "integer" }, "content": { "type": "string", "description": "base64" } } } } } } } } },
+        "responses": { "200": { "description": "{ received: true, email_uuid, parent_email_uuid, threaded, attachments_ingested, attachments_rejected[] }" }, "401": { "description": "Firma de entrada inválida" } }
+      }
+    },
+    "/api/email-events/subscriptions": {
+      "post": {
+        "tags": ["email-events"], "summary": "Suscribirse a eventos de correo", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Para clientes que quieren recibir REPLY_RECEIVED / BOUNCE / etc. vía su endpoint webhook, eligiendo qué campos van en el payload de cada evento (por privacidad, default sin body ni adjuntos).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["webhook_endpoint_uuid", "events"], "properties": { "webhook_endpoint_uuid": { "type": "string", "format": "uuid" }, "events": { "type": "array", "items": { "type": "string", "enum": ["RECEIVED_REPLY"] } }, "include_body": { "type": "boolean", "default": false }, "include_dates": { "type": "boolean", "default": true }, "include_sender": { "type": "boolean", "default": true }, "include_recipients": { "type": "boolean", "default": true }, "include_attachments": { "type": "boolean", "default": false }, "id_client": { "type": "integer", "description": "solo admin" } } } } } },
+        "responses": { "200": { "description": "Suscripción creada (uuid)" } }
+      }
+    },
+    "/api/email-events/subscriptions/my": {
+      "get": {
+        "tags": ["email-events"], "summary": "Mis suscripciones (admin: todas)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "responses": { "200": { "description": "EmailEventSubscriptionDTO[]" } }
+      }
+    },
+    "/api/email-events/subscriptions/{subscriptionUuid}": {
+      "put": {
+        "tags": ["email-events"], "summary": "Actualizar suscripción (eventos, campos, is_active)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "parameters": [ { "name": "subscriptionUuid", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "items": { "type": "string" } }, "is_active": { "type": "boolean" }, "include_body": { "type": "boolean" }, "include_dates": { "type": "boolean" }, "include_sender": { "type": "boolean" }, "include_recipients": { "type": "boolean" }, "include_attachments": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "true" }, "404": { "description": "No existe" } }
+      }
+    },
+    "/api/webhooks": {
+      "post": {
+        "tags": ["webhooks"], "summary": "Registrar endpoint webhook del cliente (secret único)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Devuelve el secret una sola vez. Todo POST a ese URL entra con headers X-Nexlify-Event / X-Nexlify-Delivery / X-Nexlify-Signature (HMAC-SHA256 del body EXACTO usando el secret).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["url"], "properties": { "url": { "type": "string", "format": "url", "description": "IsUrl: requiere TLD o IP. En dev usar http://127.0.0.1:port/path" }, "id_client": { "type": "integer", "description": "solo admin" } } } } } },
+        "responses": { "200": { "description": "WebhookEndpointDTO con secret (una sola vez)" } }
+      }
+    },
+    "/api/webhooks/my": {
+      "get": {
+        "tags": ["webhooks"], "summary": "Mis endpoints webhook (sin secret)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "responses": { "200": { "description": "WebhookEndpointDTO[] sin secret" } }
+      }
+    },
+    "/api/webhooks/{endpointUuid}": {
+      "put": {
+        "tags": ["webhooks"], "summary": "Actualizar url / is_active del endpoint", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "parameters": [ { "name": "endpointUuid", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "url": { "type": "string", "format": "url" }, "is_active": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "true" }, "404": { "description": "No existe" } }
+      }
+    },
+    "/api/nexlify-keys/generate": {
+      "post": {
+        "tags": ["nexlify-keys"], "summary": "Generar API key del cliente", "security": [{ "bearerAuth": [] }],
+        "description": "Requiere ContextInterceptor. Previas activas se revocan (una activa por cliente). El API key RAW se expone UNA VEZ (luego solo hash SHA-256 en DB).",
+        "requestBody": { "required": false, "content": { "application/json": { "schema": { "type": "object", "properties": { "id_client": { "type": "integer", "description": "solo admin" } } } } } },
+        "responses": { "200": { "description": "{ id_nexlify_key, id_client, api_key, created_at }" } }
+      }
+    },
+    "/api/nexlify-keys/my": {
+      "get": {
+        "tags": ["nexlify-keys"], "summary": "Mis API keys (enmascaradas)", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "OwnedNexlifyKeyDTO[] (api_key_masked)" } }
+      }
+    },
+    "/api/nexlify-keys/{id}/revoke": {
+      "put": {
+        "tags": ["nexlify-keys"], "summary": "Revocar API key", "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "true" }, "404": { "description": "No existe o es ajena" } }
+      }
+    },
+    "/api/users": {
+      "post": {
+        "tags": ["users"], "summary": "Crear usuario final (de un cliente)", "security": [{ "bearerAuth": [] }],
+        "description": "Non-admin fuerza id_client = su cliente; admin puede pasar id_client (default null crea usuario sin client asociado).",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "id_client": { "type": "integer" }, "id_type": { "type": "integer" }, "id_number": { "type": "string" }, "first_name": { "type": "string" }, "second_name": { "type": "string" }, "first_surname": { "type": "string" }, "second_surname": { "type": "string" }, "email": { "type": "string" }, "cell_callsign": { "type": "string" }, "cell_phone": { "type": "string" }, "birthdate": { "type": "string", "format": "date" }, "state": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "UserInfoDTO" } }
+      },
+      "get": {
+        "tags": ["users"], "summary": "Listado paginado de usuarios", "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "id_client", "in": "query", "schema": { "type": "integer" }, "description": "solo admin" }, { "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "limit", "in": "query", "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "PaginateBaseDTO<UserInfoDTO[]>" } }
+      }
+    },
+    "/api/users/{id_user}": {
+      "put": {
+        "tags": ["users"], "summary": "Actualizar usuario (perfil + estado)", "security": [{ "bearerAuth": [] }],
+        "description": "Admin cualquiera; non-admin solo usuarios de su propio cliente.",
+        "parameters": [ { "name": "id_user", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "first_name": { "type": "string" }, "second_name": { "type": "string" }, "first_surname": { "type": "string" }, "second_surname": { "type": "string" }, "email": { "type": "string" }, "cell_callsign": { "type": "string" }, "cell_phone": { "type": "string" }, "state": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "UserInfoDTO" } }
+      }
+    },
+    "/api/templates": {
+      "post": {
+        "tags": ["templates"], "summary": "Crear plantilla (solo admin)", "security": [{ "bearerAuth": [] }],
+        "description": "id_template es generado por base de datos con gen_random_uuid(). is_active default true.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "name": { "type": "string" }, "subject": { "type": "string" }, "template": { "type": "string" }, "is_active": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "TemplateInfoDTO (uuid público)" } }
+      },
+      "get": {
+        "tags": ["templates"], "summary": "Listar plantillas (cliente: solo activas)", "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "limit", "in": "query", "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "PaginateBaseDTO<TemplateInfoDTO[]>" } }
+      }
+    },
+    "/api/templates/{id}": {
+      "put": {
+        "tags": ["templates"], "summary": "Actualizar plantilla (solo admin)", "security": [{ "bearerAuth": [] }],
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "subject": { "type": "string" }, "template": { "type": "string" }, "is_active": { "type": "boolean" } } } } } },
+        "responses": { "200": { "description": "TemplateInfoDTO" } }
+      }
+    },
+    "/api/configuration/add": {
+      "post": {
+        "tags": ["configuration"], "summary": "Crear configuración global (admin)", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["sender_email", "sender_name", "mail_application_password"], "properties": { "sender_email": { "type": "string" }, "sender_name": { "type": "string" }, "reply_to_email": { "type": "string" }, "mail_application_password": { "type": "string" }, "id_smtp_server": { "type": "integer" }, "daily_send_limit": { "type": "integer" }, "max_retries": { "type": "integer" }, "retry_interval_seconds": { "type": "integer" }, "email_header_text": { "type": "string" }, "email_header_html": { "type": "string" }, "email_header_img_url": { "type": "string" }, "email_footer_text": { "type": "string" }, "email_footer_html": { "type": "string" }, "email_footer_img_url": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Configuración creada (singleton)" }, "409": { "description": "Ya existe una configuración" } }
+      }
+    },
+    "/api/configuration/get": {
+      "get": {
+        "tags": ["configuration"], "summary": "Leer configuración global", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "NexlifyConfigurationDto" }, "404": { "description": "No existe todavía" } }
+      }
+    },
+    "/api/configuration/update": {
+      "put": {
+        "tags": ["configuration"], "summary": "Actualizar configuración global (admin)", "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "sender_email": { "type": "string" }, "sender_name": { "type": "string" }, "reply_to_email": { "type": "string" }, "mail_application_password": { "type": "string" }, "id_smtp_server": { "type": "integer" }, "daily_send_limit": { "type": "integer" }, "max_retries": { "type": "integer" }, "retry_interval_seconds": { "type": "integer" }, "email_header_text": { "type": "string" }, "email_header_html": { "type": "string" }, "email_header_img_url": { "type": "string" }, "email_footer_text": { "type": "string" }, "email_footer_html": { "type": "string" }, "email_footer_img_url": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "NexlifyConfigurationDto" } }
+      }
+    },
+    "/api/master/id-types": {
+      "get": {
+        "tags": ["master"], "summary": "Tipos de identificación", "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "MasterDataDTO[] (id + code)" } }
+      }
+    },
+    "/api/verify": {
+      "get": {
+        "tags": ["verify"], "summary": "Health check", "security": [],
+        "responses": { "200": { "description": "'Nexlify provider corriendo exitosamente...'" } }
+      }
+    },
+    "/api/verify/credential-assignment": {
+      "get": {
+        "tags": ["verify"], "summary": "Validar token de asignación (link del email)", "security": [],
+        "parameters": [ { "name": "token", "in": "query", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "Verificación (marca el token como revisado)" }, "4xx": { "description": "Token inválido / ya usado" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "sesión admin (is_admin:true) o client (is_admin:false); binding de IP en el payload" },
+      "ApiKeyAuth": { "type": "apiKey", "in": "header", "name": "x-api-key", "description": "Clave API de cliente (nexlify_keys), solo ruta /api/email/**" }
+    },
+    "schemas": {
+      "EmailAttachment": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "contentType": { "type": "string" },
+          "size": { "type": "integer" },
+          "content": { "type": "string", "description": "base64 (≤5MB por archivo al ingestar)" }
+        }
+      }
+    }
+  }
+}

@@ -79,7 +79,7 @@ export class ClientContoller {
     ): Promise<ClientResponse<boolean>> {
         return new ClientResponse({
             ok: true,
-            message: 'Cliente registrado existosamente',
+            message: 'Cliente registrado exitosamente',
             data: await this._registerClientUseCase.run({ data: { ...body } }),
         });
     }
@@ -148,7 +148,7 @@ export class ClientContoller {
     async clientData(): Promise<ClientResponse<ClientDataDTO>> {
         return new ClientResponse({
             ok: true,
-            message: 'Datos de sesion obtenidos existosamente',
+            message: 'Datos de sesion obtenidos exitosamente',
             data: await this._clientDataUseCase.run({ data: null }),
         });
     }
