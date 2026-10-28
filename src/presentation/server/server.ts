@@ -3,6 +3,7 @@ import { type INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { NestFactory } from '@nestjs/core';
 import cors from 'cors';
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
 import helmet from 'helmet';
 import * as path from 'node:path';
@@ -15,6 +16,9 @@ import { AppEnvs as _env } from '../../infrastructure/environments/app-env.confi
 export class Server {
     readonly #logger = colors;
     readonly #prismaLogger = new Logger(PrismaService.name);
+    // Boot-time nonce for the /api/docs page: helmet CSP allows scripts ONLY
+    // with this nonce and the Scalar middleware stamps it on its script tags.
+    readonly #docsNonce = randomBytes(16).toString('base64');
     #app?: INestApplication;
 
     async start(): Promise<void> {
@@ -45,6 +49,11 @@ export class Server {
                 contentSecurityPolicy: {
                     directives: {
                         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+                        'script-src': ["'self'", `'nonce-${this.#docsNonce}'`],
+                        // The UMD bundle injects its stylesheet at runtime; the
+                        // scalar-nonce covers the strict case, unsafe-inline is
+                        // the pragmatic fallback for non-strict builds.
+                        'style-src': ["'self'", `'nonce-${this.#docsNonce}'`, "'unsafe-inline'", 'https:'],
                         'worker-src': ["'self'", 'blob:'],
                     },
                 },
@@ -119,11 +128,19 @@ export class Server {
 
         this.#app!.use(
             '/api/docs',
+            // No-store: browsers must never keep an old docs shell around.
+            (req: unknown, res: { setHeader(key: string, value: string): void }, next: () => void) => {
+                res.setHeader('Cache-Control', 'no-store');
+                next();
+            },
             apiReference({
                 // A custom cdn makes the middleware emit the UMD bundle path
                 // (<script src=...> + window.Scalar global) instead of the CDN
-                // module import — here it points at our own origin.
+                // module import — here it points at our own origin. The nonce
+                // goes into the CSP above AND gets stamped on the script tags
+                // (plus <meta csp-nonce> for runtime-injected styles).
                 cdn: '/scalar-runtime/standalone.js',
+                nonce: this.#docsNonce,
                 content: spec,
                 theme: 'purple',
                 pageTitle: 'nexlify-provider API Reference',
