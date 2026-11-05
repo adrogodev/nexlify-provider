@@ -15,6 +15,10 @@ export interface ApplicationEnvs {
     ENCRYPT_KEY: string;
     /** Shared secret of the provider-agnostic inbound webhook (HMAC-SHA256 over the raw body). */
     INBOUND_WEBHOOK_SECRET: string;
-    /** Public base URL of this API (unsubscribe links). Optional, defaults to http://localhost:${PORT}. */
+    /** Public base URL of this API; defaults to http://localhost:${PORT}. */
     PUBLIC_API_URL: string;
+    /** Optional: enables the AI reply intelligence when set. */
+    ANTHROPIC_API_KEY: string | undefined;
+    /** Claude model used by the AI reply intelligence. */
+    ANTHROPIC_MODEL: string;
 }

@@ -33,6 +33,13 @@ export class EmailsRepository extends BaseRepository<Email, 'id_email'> implemen
         return await this._model.findFirst({ where: { message_id: messageId } });
     }
 
+    public async findByParentId(parentEmailId: bigint): Promise<Email[]> {
+        return await this._model.findMany({
+            where: { parent_email_id: parentEmailId },
+            orderBy: { id_email: 'asc' },
+        });
+    }
+
     public async findQueued(limit: number): Promise<Email[]> {
         return await this._model.findMany({
             where: {
@@ -80,6 +87,7 @@ export class EmailsRepository extends BaseRepository<Email, 'id_email'> implemen
             state: filters.state,
             id_client: filters.id_client,
             short_code: filters.short_code,
+            ai_intent: filters.ai_intent,
             created_at: (filters.from_date || filters.to_date)
                 ? {
                     gte: filters.from_date,

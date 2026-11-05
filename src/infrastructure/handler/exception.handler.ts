@@ -4,6 +4,7 @@ import {
     AlreadyExistsException,
     NotFoundException,
     NotMatchException,
+    ServiceUnavailableException,
     UnauthenticatedException,
     UnauthorizedException,
     ValidationException,
@@ -56,6 +57,10 @@ export class ExceptionHandler {
 
         if (err instanceof NotMatchException) {
             return { statusCode: 400, response: new ClientErrorResponse({ ok: false, code: err.code, message: err.message }) };
+        }
+
+        if (err instanceof ServiceUnavailableException) {
+            return { statusCode: 503, response: new ClientErrorResponse({ ok: false, code: err.code, message: err.message }) };
         }
 
         return { statusCode: 500, response };

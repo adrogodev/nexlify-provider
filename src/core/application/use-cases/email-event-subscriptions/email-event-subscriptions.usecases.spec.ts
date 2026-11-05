@@ -94,6 +94,17 @@ describe('EmailEventSubscriptions use cases', () => {
             expect(created['id_subscription']).toBeUndefined();
         });
 
+        it('defaults include_ai_analysis to false and stores/returns it when requested (S8)', async () => {
+            const { create, subscriptionsRepo } = build();
+
+            await create.run({ data: input() as never });
+            const enabled = await create.run({ data: input({ include_ai_analysis: true }) as never });
+
+            expect((subscriptionsRepo.create.mock.calls[0][0] as Record<string, unknown>)['include_ai_analysis']).toBe(false);
+            expect((subscriptionsRepo.create.mock.calls[1][0] as Record<string, unknown>)['include_ai_analysis']).toBe(true);
+            expect(enabled.include_ai_analysis).toBe(true);
+        });
+
         it('rejects a subscription on an endpoint owned by another client', async () => {
             const { create } = build();
 
@@ -184,6 +195,18 @@ describe('EmailEventSubscriptions use cases', () => {
             expect(patch['is_active']).toBe(false);
             expect(Object.keys(patch)).not.toContain('subscription_uuid');
             expect(Object.keys(patch)).not.toContain('id_client');
+        });
+
+        it('patches include_ai_analysis only when sent (S8)', async () => {
+            const built = build();
+            const update = new UpdateSubscriptionUseCase(built.context70 as never, built.subscriptionsRepo as never);
+
+            const result = await update.run({ data: { subscription_uuid: subscription.subscription_uuid, include_ai_analysis: true } });
+            await update.run({ data: { subscription_uuid: subscription.subscription_uuid, is_active: true } });
+
+            expect(built.subscriptionsRepo.update.mock.calls[0][1]).toEqual({ include_ai_analysis: true });
+            expect(Object.keys(built.subscriptionsRepo.update.mock.calls[1][1] as object)).not.toContain('include_ai_analysis');
+            expect(result.include_ai_analysis).toBe(true);
         });
 
         it('rejects the update of another client subscription without admin', async () => {

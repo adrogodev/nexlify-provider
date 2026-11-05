@@ -37,6 +37,7 @@ describe('API (e2e)', () => {
                 webhook_endpoints: {},
                 webhook_deliveries: {},
                 sending_domains: {},
+                email_certificates: { findUnique: jest.fn(async () => null) },
                 suppressions,
             })
             .compile();
@@ -137,6 +138,29 @@ describe('API (e2e)', () => {
         expect(suppressions.create).toHaveBeenCalledWith({
             data: expect.objectContaining({ id_client: 7n, email: 'dest@test.local', reason: 'UNSUBSCRIBE' }),
         });
+    });
+
+    it.each([
+        ['get', '/api/stats/overview'],
+        ['get', '/api/ai/status'],
+        ['post', '/api/email/NX-AAAAAA1/certificate'],
+        ['get', '/api/email/NX-AAAAAA1/certificate'],
+        ['get', '/api/email/NX-AAAAAA1/certificate/pdf'],
+        ['post', '/api/email/NX-AAAAAA1/analyze'],
+        ['get', '/api/webhooks/11111111-1111-4111-8111-111111111111/deliveries'],
+        ['post', '/api/webhooks/deliveries/44/redeliver'],
+        ['post', '/api/webhooks/11111111-1111-4111-8111-111111111111/test'],
+    ])('%s %s rejects unauthenticated requests (EmailAuthGuard)', (method, path) => {
+        return (request(app.getHttpServer()) as unknown as Record<string, (url: string) => request.Test>)[method](path).expect(403);
+    });
+
+    it('GET /api/certificates/:code/verify is public and 404s an unknown certificate', async () => {
+        const response = await request(app.getHttpServer()).get('/api/certificates/NXC-UNKNOWN000/verify').expect(404);
+        expect(response.body).toMatchObject({ ok: false, message: 'Certificado no encontrado' });
+    });
+
+    it('GET /api/certificates/:code/verify rejects a malformed code with 400', () => {
+        return request(app.getHttpServer()).get('/api/certificates/not-a-code/verify').expect(400);
     });
 
     afterAll(async () => {

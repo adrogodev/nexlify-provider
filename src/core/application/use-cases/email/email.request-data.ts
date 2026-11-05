@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsEnum, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, Min, Validate, ValidateIf, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
-import { EmailStateEnum } from 'src/core/domain/enum';
+import { AiIntentEnum, EmailStateEnum } from 'src/core/domain/enum';
 
 @ValidatorConstraint({ name: 'email-id', async: false })
 export class EmailIdConstraint implements ValidatorConstraintInterface {
@@ -38,6 +38,11 @@ export class GetEmailsRequestData {
     @IsOptional()
     @IsString()
     short_code?: string;
+
+    /** S8: only replies classified with this AI intent. */
+    @IsOptional()
+    @IsEnum(AiIntentEnum)
+    ai_intent?: AiIntentEnum;
 
     @IsOptional()
     @Type(() => Number)

@@ -33,7 +33,9 @@ Required (see `.env.example`):
 | `ENCRYPT_KEY` | AES-GCM key protecting tokens stored at rest |
 | `MAILER_TLS_REJECT_UNAUTHORIZED` | Optional, defaults to `true`. Only set `false` for local SMTP relays with self-signed certificates. |
 | `INBOUND_WEBHOOK_SECRET` | HMAC secret of the signed inbound (`api/email/inbound`) and bounce (`api/email/events/bounce`) webhooks |
-| `PUBLIC_API_URL` | Optional, defaults to `http://localhost:${PORT}`. Public base URL of this API, used to build the `List-Unsubscribe` links |
+| `PUBLIC_API_URL` | Optional, defaults to `http://localhost:${PORT}`. Public base URL of this API, used to build `List-Unsubscribe` links and certificate verification links. |
+| `ANTHROPIC_API_KEY` | Optional. Enables the AI reply intelligence; without it the feature reports itself disabled and nothing fails. |
+| `ANTHROPIC_MODEL` | Optional, defaults to `claude-opus-5-5`. Claude model used for reply analysis. |
 
 > `JWT_SECRET_KEY` and `ENCRYPT_KEY` are required: requests with an empty value fail fast instead of falling back to default secrets.
 >
@@ -97,6 +99,16 @@ When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` ro
 | DELETE | `api/suppressions/:suppressionUuid` | AuthGuard | Remove a suppression |
 | GET | `api/unsubscribe/:token` | — (signed token) | Public HTML confirmation page |
 | POST | `api/unsubscribe/:token` | — (signed token) | RFC 8058 one-click unsubscribe (reason `UNSUBSCRIBE`) |
+| GET | `api/stats/overview?from&to&id_client` | EmailAuthGuard | Dashboard KPIs: totals per state, delivery/bounce rate, replies, daily series, remaining daily budget, AI intents |
+| POST | `api/email/:emailId/certificate` | EmailAuthGuard | Issue the immutable certificate of a SENT/WARNING email (idempotent) |
+| GET | `api/email/:emailId/certificate` | EmailAuthGuard | Read the certificate (404 if none) |
+| GET | `api/email/:emailId/certificate/pdf` | EmailAuthGuard | Download the certificate PDF |
+| GET | `api/certificates/:code/verify` | — (public) | Verify a certificate: validity + hashes, no body content |
+| POST | `api/email/:emailId/analyze` | EmailAuthGuard | Re-run the AI analysis of a RECEIVED reply (503 when disabled) |
+| GET | `api/ai/status` | EmailAuthGuard | `{ enabled, model }` of the AI reply intelligence |
+| GET | `api/webhooks/:endpointUuid/deliveries?page&limit` | EmailAuthGuard | Paginated delivery history of an own endpoint |
+| POST | `api/webhooks/deliveries/:deliveryId/redeliver` | EmailAuthGuard | Re-queue a delivery (resets the same row) |
+| POST | `api/webhooks/:endpointUuid/test` | EmailAuthGuard | Synchronous signed `ping` with status and duration |
 | POST | `api/nexlify-keys/generate` | AuthGuard | Generate a client API key (raw key returned once) |
 | GET | `api/nexlify-keys/my` | AuthGuard | List the calling client's API keys (masked) |
 | PUT | `api/nexlify-keys/:id/revoke` | AuthGuard | Revoke an API key |
@@ -155,6 +167,33 @@ POST api/email/inbound  →  HMAC verify (INBOUND_WEBHOOK_SECRET)  →  thread r
 - `POST api/email/events/bounce` (same HMAC header as inbound) finds the email by `email_uuid` or `message_id`; `HARD_BOUNCE` / `COMPLAINT` set `BOUNCED` + `bounced_at` and suppress the address; `SOFT_BOUNCE` only logs a WARNING.
 - Every single-recipient email carries `List-Unsubscribe: <PUBLIC_API_URL/api/unsubscribe/<token>>` and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. The token is an HMAC-SHA256 (key derived from `ENCRYPT_KEY`) over recipient + client and does not expire. Multi-recipient emails get no unsubscribe header (a token identifies one recipient).
 - `GET api/unsubscribe/:token` renders a self-contained Spanish confirmation page (no scripts, own strict CSP); `POST` suppresses with reason `UNSUBSCRIBE`.
+
+### Dashboard stats
+
+`GET api/stats/overview` aggregates in the database (Prisma `groupBy` + one parameterized `$queryRaw` for the daily series). Clients always see only their own emails; admins see all or filter by `id_client`. The range is a set of inclusive UTC days (default: last 30 days, max 366). `totals` has one counter per `EmailState` (new states appear automatically), `delivery_rate = (SENT+WARNING) / (SENT+WARNING+FAILED+BOUNCED)`, `bounce_rate = BOUNCED / (SENT+WARNING+BOUNCED)` (0..1), `replies` = RECEIVED, `daily` is zero-filled per day, and `budget` is the global `daily_send_limit` minus the SENT/WARNING emails sent today (the same rule the send path enforces).
+
+### Certified email
+
+`POST api/email/:emailId/certificate` freezes an immutable evidence snapshot of a SENT/WARNING email in `email_certificates` and returns `{ certificate_uuid, certificate_code (NXC-XXXXXXXXXX), issued_at, content_hash, evidence_hash, verify_url }`. Issuing again returns the same certificate.
+
+- `content_hash` = SHA-256 (hex) of `subject + "\n" + body_html + "\n" + body_text`, with missing bodies as empty strings.
+- The evidence is canonical JSON (keys sorted recursively, no whitespace, bigint as string, dates in ISO-8601) with the email identity, `message_id`, `content_hash`, every attempt log (timestamp, level, SMTP host, message) in chronological order and the reply chain. It never stores the body. `evidence_hash` = SHA-256 (hex) of that exact text.
+- `GET api/email/:emailId/certificate/pdf` renders a Spanish PDF (pdfkit) from the stored evidence, with both formulas and the verification URL `${PUBLIC_API_URL}/api/certificates/<code>/verify`.
+- Public verification recomputes the SHA-256 of the stored evidence: `valid` is true only when it still equals `evidence_hash`. Recipients are masked and no body content is returned.
+
+### AI reply intelligence
+
+When `ANTHROPIC_API_KEY` is set, every ingested RECEIVED reply is analyzed with Claude (`ANTHROPIC_MODEL`, default `claude-opus-5-5`, structured outputs) **after** it is persisted: the analysis runs in the background and never blocks or fails the ingestion. It stores `ai_intent` (ACCEPT, REJECT, QUESTION, PAYMENT_PROMISE, COMPLAINT, OUT_OF_OFFICE, UNSUBSCRIBE_REQUEST, OTHER), `ai_sentiment` (POSITIVE, NEUTRAL, NEGATIVE), a Spanish `ai_summary` and extracted entities (dates, amounts, references), exposed as `ai_analysis` in the email detail and `ai_intent` in the list (`GET api/email?ai_intent=`). An `UNSUBSCRIBE_REQUEST` adds an `UNSUBSCRIBE` suppression for the sender (deduplicated per client + email).
+
+- Webhooks: subscriptions accept `include_ai_analysis`. While AI is enabled, the `RECEIVED_REPLY` deliveries of a reply are enqueued **once its analysis finishes**, so subscribers receive `ai_analysis` (`null` if the analysis failed — the webhook still goes out). With AI disabled the deliveries are enqueued immediately, as before. Analyses in flight when the process stops are not retried automatically; `POST api/email/:emailId/analyze` re-runs one on demand (it does not re-send webhooks).
+- Without a key the feature reports `enabled: false` (`GET api/ai/status`), `analyze` answers 503 `Análisis IA deshabilitado`, and nothing else changes.
+- Privacy: the reply subject and text (HTML stripped, truncated to 20,000 characters) are sent to Anthropic **only when `ANTHROPIC_API_KEY` is configured**. The content is delimited as untrusted data in the prompt.
+
+### Webhook deliveries DX
+
+- `GET api/webhooks/:endpointUuid/deliveries` lists the delivery history of an own endpoint (newest first, same paginated envelope as `GET api/email`), including the email `short_code`.
+- `POST api/webhooks/deliveries/:deliveryId/redeliver` resets **the same row** (`attempt 0`, `ok/status_code/error` null, `next_retry_at` now); the scheduler ships its stored payload on its next tick, so the history shows the latest outcome of that delivery.
+- `POST api/webhooks/:endpointUuid/test` sends `{ event: "ping", endpoint_uuid, sent_at }` synchronously with the same headers and HMAC signature as real deliveries and returns `{ ok, status_code, error, duration_ms }`. Nothing is persisted.
 
 ## Tests
 

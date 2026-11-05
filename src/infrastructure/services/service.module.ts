@@ -1,6 +1,9 @@
 import { Module } from "@nestjs/common";
 import { REQUEST_CONTEXT } from "src/core/application/contracts/infrastructure";
-import { HTTP_DELIVERY_SERVICE, MAILER_SERVICE } from "src/core/application/contracts/services";
+import { CERTIFICATE_PDF_RENDERER, HTTP_DELIVERY_SERVICE, MAILER_SERVICE, REPLY_ANALYZER } from "src/core/application/contracts/services";
+import { ClaudeReplyAnalyzerService } from "./claude-reply-analyzer.service";
+import { AppEnvs } from "../environments/app-env.config";
+import { PdfkitCertificateRendererService } from "./pdfkit-certificate-renderer.service";
 import { MailerService } from "./mailer.service";
 import { TEMPLATE_SERVICE } from "src/core/application/contracts/services/template.service";
 import { TemplateService } from "./template.service";
@@ -8,7 +11,6 @@ import { WebhookHttpDeliveryService } from "./webhook-http-delivery.service";
 import { ContextInterceptor } from "../interceptors/context.interceptor";
 import { ContextService } from "./context.service";
 import { DKIM_KEY_GENERATOR, DNS_RESOLVER, UNSUBSCRIBE_TOKEN_SERVICE } from "src/core/application/contracts/services";
-import { AppEnvs } from "../environments/app-env.config";
 import { DkimKeyGeneratorService } from "./dkim-key-generator.service";
 import { DnsResolverService } from "./dns-resolver.service";
 import { UnsubscribeTokenService } from "./unsubscribe-token.service";
@@ -45,9 +47,17 @@ import { UnsubscribeTokenService } from "./unsubscribe-token.service";
         {
             provide: UNSUBSCRIBE_TOKEN_SERVICE,
             useFactory: () => new UnsubscribeTokenService(AppEnvs.ENCRYPT_KEY, AppEnvs.PUBLIC_API_URL)
+        },
+        {
+            provide: REPLY_ANALYZER,
+            useFactory: () => new ClaudeReplyAnalyzerService(AppEnvs.ANTHROPIC_API_KEY, AppEnvs.ANTHROPIC_MODEL)
+        },
+        {
+            provide: CERTIFICATE_PDF_RENDERER,
+            useClass: PdfkitCertificateRendererService
         }
     ],
-    exports: [ContextService, ContextInterceptor, REQUEST_CONTEXT, MAILER_SERVICE, TEMPLATE_SERVICE, HTTP_DELIVERY_SERVICE, DNS_RESOLVER, DKIM_KEY_GENERATOR, UNSUBSCRIBE_TOKEN_SERVICE]
+    exports: [ContextService, ContextInterceptor, REQUEST_CONTEXT, MAILER_SERVICE, TEMPLATE_SERVICE, HTTP_DELIVERY_SERVICE, DNS_RESOLVER, DKIM_KEY_GENERATOR, UNSUBSCRIBE_TOKEN_SERVICE, REPLY_ANALYZER, CERTIFICATE_PDF_RENDERER]
 })
 
 export class ServicesModule { }

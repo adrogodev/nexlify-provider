@@ -26,5 +26,12 @@ export class Email {
         public template_variables?: Nullable<string>,
         /** When a hard bounce / complaint was reported (S5). */
         public bounced_at?: Nullable<Date>,
+        /** S8 AI reply intelligence: filled asynchronously after inbound ingestion. */
+        public ai_intent?: Nullable<string>,
+        public ai_sentiment?: Nullable<string>,
+        public ai_summary?: Nullable<string>,
+        /** JSON of the extracted entities ({ dates, amounts, references }). */
+        public ai_data?: Nullable<string>,
+        public ai_analyzed_at?: Nullable<Date>
     ) { }
 }

@@ -1,4 +1,5 @@
 import { EmailDirectionEnum, EmailLogLevelEnum, EmailStateEnum } from "src/core/domain/enum";
+import type { AiAnalysisDTO } from "../use-cases/email/analyze-reply/ai-analysis.dto";
 
 export interface EmailAttachmentMetadataDTO {
     filename: string,
@@ -33,7 +34,9 @@ export interface EmailListItemDTO {
     subject: string,
     state: EmailStateEnum | null,
     attempts: number | null,
-    created_at: Date | null
+    created_at: Date | null,
+    /** S8: AI intent of an analyzed reply (null otherwise). */
+    ai_intent: string | null
 }
 
 export interface EmailSendLogDTO {
@@ -52,7 +55,9 @@ export interface EmailDetailDTO extends EmailDTO {
     /** S2: template used to render the email, if any. */
     id_template: string | null,
     /** S2: variables used to render the template, if any. */
-    template_variables: Record<string, string> | null
+    template_variables: Record<string, string> | null,
+    /** S8: AI reply intelligence; null until the reply is analyzed. */
+    ai_analysis: AiAnalysisDTO | null
 }
 
 export interface SendEmailResultDTO {

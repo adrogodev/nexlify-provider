@@ -5,3 +5,4 @@ export * from './id-generator.interface';
 export * from './jwt-generator.interface';
 export * from './password-hasher.interface';
 export * from './request-context.interface';
+export * from './webhook-signer.interface';

@@ -20,6 +20,10 @@ import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
 import { SENDING_DOMAINS_REPOSITORY, SUPPRESSIONS_REPOSITORY } from 'src/core/application/contracts/persistence';
 import { SendingDomainsRepository } from './sending-domains.repository';
 import { SuppressionsRepository } from './suppressions.repository';
+import { EMAIL_CERTIFICATES_REPOSITORY, EMAIL_STATS_REPOSITORY, UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY } from 'src/core/application/contracts/persistence';
+import { EmailCertificatesRepository } from './email-certificates.repository';
+import { EmailStatsRepository } from './email-stats.repository';
+import { UnsubscribeSuppressionsRepository } from './unsubscribe-suppressions.repository';
 
 @Module({
     imports: [PrismaModule],
@@ -97,6 +101,18 @@ import { SuppressionsRepository } from './suppressions.repository';
             provide: SUPPRESSIONS_REPOSITORY,
             useClass: SuppressionsRepository
         },
+        {
+            provide: EMAIL_CERTIFICATES_REPOSITORY,
+            useClass: EmailCertificatesRepository
+        },
+        {
+            provide: EMAIL_STATS_REPOSITORY,
+            useClass: EmailStatsRepository
+        },
+        {
+            provide: UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY,
+            useClass: UnsubscribeSuppressionsRepository
+        },
     ],
     exports: [
         ADMIN_USER_REPOSITORY,
@@ -117,6 +133,9 @@ import { SuppressionsRepository } from './suppressions.repository';
         WEBHOOK_DELIVERIES_REPOSITORY,
         SENDING_DOMAINS_REPOSITORY,
         SUPPRESSIONS_REPOSITORY,
+        EMAIL_CERTIFICATES_REPOSITORY,
+        EMAIL_STATS_REPOSITORY,
+        UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY
     ],
 })
 

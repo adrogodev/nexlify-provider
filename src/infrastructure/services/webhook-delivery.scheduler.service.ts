@@ -1,4 +1,3 @@
-import { createHmac } from 'node:crypto';
 import { colors } from '@gamastudio/colorslog';
 import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import type { IEmailsRepository, IWebhookDeliveriesRepository, IWebhookEndpointsRepository } from 'src/core/application/contracts/persistence';
@@ -6,6 +5,7 @@ import type { IHttpDeliveryService } from 'src/core/application/contracts/servic
 import type { Email } from 'src/core/domain/entities/email.entity';
 import type { WebhookDelivery } from 'src/core/domain/entities/webhook-delivery.entity';
 import type { WebhookEndpoint } from 'src/core/domain/entities/webhook-endpoint.entity';
+import { signWebhookBody } from '../helpers/webhook-signer.helper';
 
 export const WEBHOOK_SCHEDULER_INTERVAL_MS = 30_000;
 const RETRY_INTERVAL_SECONDS = 60;
@@ -95,7 +95,7 @@ export class WebhookDeliveryScheduler implements OnModuleInit, OnModuleDestroy {
                 to_email: email.to_email,
                 sent_at: email.sent_at,
             });
-        const signature = createHmac('sha256', endpoint.secret).update(body).digest('hex');
+        const signature = signWebhookBody(endpoint.secret, body);
 
         const result = await this._httpDeliveryService.post({
             url: endpoint.url,

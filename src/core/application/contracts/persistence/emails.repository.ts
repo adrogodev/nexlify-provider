@@ -10,6 +10,8 @@ export interface GetEmailsFilters {
     from_date?: Date;
     to_date?: Date;
     short_code?: string;
+    /** S8: only replies whose AI analysis classified them with this intent. */
+    ai_intent?: string;
     page?: number;
     limit?: number;
 }
@@ -25,6 +27,8 @@ export interface IEmailsRepository extends IBaseRepository<Email, 'id_email'> {
     findByUuidOrShortCode(identifier: string): Promise<Email | null>;
     /** Resolves an email row by its captured nodemailer Message-ID (inbound threading key). */
     findByMessageId(messageId: string): Promise<Email | null>;
+    /** Replies threaded to an email (reply chain of the certified-email evidence). */
+    findByParentId(parentEmailId: bigint): Promise<Email[]>;
     findQueued(limit: number): Promise<Email[]>;
     findRetryable(nextRetryBefore: Date): Promise<Email[]>;
     countSentOn(from: Date, to: Date): Promise<number>;

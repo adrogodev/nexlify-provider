@@ -34,6 +34,10 @@ export class CreateSubscriptionRequestData {
     @IsBoolean()
     include_attachments?: boolean;
 
+    @IsOptional()
+    @IsBoolean()
+    include_ai_analysis?: boolean;
+
     /** Administration flow: subscribe events for another client. */
     @IsOptional()
     @Type(() => Number)

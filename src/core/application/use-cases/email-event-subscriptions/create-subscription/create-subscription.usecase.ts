@@ -14,6 +14,7 @@ const INCLUDED_FIELDS_DEFAULTS = {
     include_sender: true,
     include_recipients: true,
     include_attachments: false,
+    include_ai_analysis: false,
 } as const;
 
 /**
@@ -60,6 +61,7 @@ export class CreateSubscriptionUseCase implements UseCase<CreateSubscriptionInpu
             include_sender: args.data.include_sender ?? INCLUDED_FIELDS_DEFAULTS.include_sender,
             include_recipients: args.data.include_recipients ?? INCLUDED_FIELDS_DEFAULTS.include_recipients,
             include_attachments: args.data.include_attachments ?? INCLUDED_FIELDS_DEFAULTS.include_attachments,
+            include_ai_analysis: args.data.include_ai_analysis ?? INCLUDED_FIELDS_DEFAULTS.include_ai_analysis,
             is_active: true,
         });
 

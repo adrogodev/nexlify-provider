@@ -6,11 +6,21 @@ import {
     Param,
     Post,
     Put,
+    Query,
     UseGuards,
     UseInterceptors,
 } from '@nestjs/common';
+import type { PaginateBaseDTO } from 'src/core/application/dtos';
 import {
     ListMyWebhookEndpointsUseCase,
+    ListWebhookDeliveriesRequestData,
+    ListWebhookDeliveriesUseCase,
+    type RedeliverResultDTO,
+    RedeliverWebhookDeliveryUseCase,
+    TestWebhookEndpointUseCase,
+    type WebhookDeliveryItemDTO,
+    WebhookDeliveryIdParam,
+    type WebhookTestResultDTO,
     OwnedWebhookEndpointDTO,
     RegisterWebhookEndpointRequestData,
     RegisterWebhookEndpointUseCase,
@@ -35,6 +45,9 @@ export class WebhooksController {
         private readonly _registerWebhookEndpointUseCase: RegisterWebhookEndpointUseCase,
         private readonly _listMyWebhookEndpointsUseCase: ListMyWebhookEndpointsUseCase,
         private readonly _updateWebhookEndpointUseCase: UpdateWebhookEndpointUseCase,
+        private readonly _listWebhookDeliveriesUseCase: ListWebhookDeliveriesUseCase,
+        private readonly _redeliverWebhookDeliveryUseCase: RedeliverWebhookDeliveryUseCase,
+        private readonly _testWebhookEndpointUseCase: TestWebhookEndpointUseCase,
     ) {}
 
     @Post()
@@ -58,6 +71,49 @@ export class WebhooksController {
             ok: true,
             message: 'Webhooks obtenidos con exito',
             data: await this._listMyWebhookEndpointsUseCase.run({ data: null }),
+        });
+    }
+
+    @Get(':endpointUuid/deliveries')
+    @HttpCode(200)
+    async deliveries(
+        @Param() param: WebhookEndpointUuidParam,
+        @Query() query: ListWebhookDeliveriesRequestData,
+    ): Promise<ClientResponse<PaginateBaseDTO<WebhookDeliveryItemDTO[]>>> {
+        return new ClientResponse({
+            ok: true,
+            message: 'Historial de entregas obtenido con exito',
+            data: await this._listWebhookDeliveriesUseCase.run({
+                data: { endpoint_uuid: param.endpointUuid, ...query },
+            }),
+        });
+    }
+
+    @Post('deliveries/:deliveryId/redeliver')
+    @HttpCode(200)
+    async redeliver(
+        @Param() param: WebhookDeliveryIdParam,
+    ): Promise<ClientResponse<RedeliverResultDTO>> {
+        return new ClientResponse({
+            ok: true,
+            message: 'Entrega reencolada exitosamente',
+            data: await this._redeliverWebhookDeliveryUseCase.run({
+                data: param.deliveryId,
+            }),
+        });
+    }
+
+    @Post(':endpointUuid/test')
+    @HttpCode(200)
+    async test(
+        @Param() param: WebhookEndpointUuidParam,
+    ): Promise<ClientResponse<WebhookTestResultDTO>> {
+        return new ClientResponse({
+            ok: true,
+            message: 'Evento de prueba enviado',
+            data: await this._testWebhookEndpointUseCase.run({
+                data: param.endpointUuid,
+            }),
         });
     }
 
