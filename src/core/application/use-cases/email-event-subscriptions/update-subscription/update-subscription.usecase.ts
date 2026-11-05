@@ -41,6 +41,7 @@ export class UpdateSubscriptionUseCase implements UseCase<UpdateSubscriptionInpu
         if (args.data.include_sender !== undefined) patch.include_sender = args.data.include_sender;
         if (args.data.include_recipients !== undefined) patch.include_recipients = args.data.include_recipients;
         if (args.data.include_attachments !== undefined) patch.include_attachments = args.data.include_attachments;
+        if (args.data.include_ai_analysis !== undefined) patch.include_ai_analysis = args.data.include_ai_analysis;
         if (args.data.is_active !== undefined) patch.is_active = args.data.is_active;
 
         const updated = await this._emailEventSubscriptionsRepository.update(subscription.id_subscription, patch);

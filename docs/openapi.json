@@ -15,6 +15,9 @@
     { "name": "email", "description": "Envío, difusión, auditoría y recepción de correos" },
     { "name": "email-events", "description": "Suscripciones a eventos de correo con gating de campos" },
     { "name": "webhooks", "description": "Endpoints webhook de clientes para notificaciones de estado" },
+    { "name": "stats", "description": "Métricas del dashboard (totales, tasas, serie diaria, presupuesto)" },
+    { "name": "certificates", "description": "Correo certificado: evidencia inmutable, PDF y verificación pública" },
+    { "name": "ai", "description": "Inteligencia IA de respuestas (Claude)" },
     { "name": "nexlify-keys", "description": "API keys de clientes programáticos" },
     { "name": "users", "description": "Usuarios finales bajo un cliente" },
     { "name": "templates", "description": "Plantillas de correo" },
@@ -142,14 +145,14 @@
     "/api/email": {
       "get": {
         "tags": ["email"], "summary": "Listado paginado de correos", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
-        "parameters": [ { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["QUEUED", "SENDING", "SENT", "WARNING", "FAILED", "RETRYING"] } }, { "name": "id_client", "in": "query", "schema": { "type": "integer" } }, { "name": "from_date", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "to_date", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "short_code", "in": "query", "schema": { "type": "string" } }, { "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "maximum": 100 } } ],
-        "responses": { "200": { "description": "PaginateBaseDTO<EmailListItemDTO[]>" } }
+        "parameters": [ { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["QUEUED", "SENDING", "SENT", "WARNING", "FAILED", "RETRYING"] } }, { "name": "id_client", "in": "query", "schema": { "type": "integer" } }, { "name": "from_date", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "to_date", "in": "query", "schema": { "type": "string", "format": "date-time" } }, { "name": "short_code", "in": "query", "schema": { "type": "string" } }, { "name": "page", "in": "query", "schema": { "type": "integer" } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "maximum": 100 } }, { "name": "ai_intent", "in": "query", "schema": { "$ref": "#/components/schemas/AiIntent" }, "description": "Solo respuestas clasificadas con esta intención IA" } ],
+        "responses": { "200": { "description": "PaginateBaseDTO<EmailListItemDTO[]>; cada ítem incluye `ai_intent` (string|null)" } }
       }
     },
     "/api/email/{emailId}": {
       "get": {
         "tags": ["email"], "summary": "Detalle de un correo con historial de intentos", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
-        "description": "`emailId` acepta el uuid v4 O el short code (NX-XXXXXXX). Incluye `direction` (SENT/RECEIVED), `parent_email_uuid` (nombre del hilo) y metadata de adjuntos.",
+        "description": "`emailId` acepta el uuid v4 O el short code (NX-XXXXXXX). Incluye `direction` (SENT/RECEIVED), `parent_email_uuid` (nombre del hilo), metadata de adjuntos y `ai_analysis` (AiAnalysis|null, solo respuestas RECEIVED analizadas).",
         "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string", "description": "UUID v4 o short code NX-…" } } ],
         "responses": { "200": { "description": "EmailDetailDTO (logs por intento)" }, "404": { "description": "No existe" } }
       }
@@ -169,10 +172,39 @@
         "responses": { "200": { "description": "{ filename, content_type, size_bytes, content_base64 }" }, "404": { "description": "Índice fuera de rango" } }
       }
     },
+    "/api/email/{emailId}/certificate": {
+      "post": {
+        "tags": ["certificates"], "summary": "Emitir certificado de envío (idempotente)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Solo correos SENT o WARNING. Congela una evidencia inmutable (JSON canónico con claves ordenadas): identidad del correo, message_id, cada intento con timestamp y servidor SMTP, y la cadena de respuestas. `content_hash` = SHA-256 de `subject + \"\\n\" + body_html + \"\\n\" + body_text` (nulos como cadena vacía); `evidence_hash` = SHA-256 de la evidencia canónica. Si ya existe, devuelve el mismo certificado.",
+        "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string", "description": "UUID v4 o short code NX-…" } } ],
+        "responses": { "200": { "description": "Certificado", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/Certificate" } } } } } }, "400": { "description": "El correo no está en estado SENT/WARNING" }, "404": { "description": "No existe o pertenece a otro cliente" } }
+      },
+      "get": {
+        "tags": ["certificates"], "summary": "Obtener el certificado de un correo", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string", "description": "UUID v4 o short code NX-…" } } ],
+        "responses": { "200": { "description": "Certificado", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/Certificate" } } } } } }, "404": { "description": "El correo no tiene certificado" } }
+      }
+    },
+    "/api/email/{emailId}/certificate/pdf": {
+      "get": {
+        "tags": ["certificates"], "summary": "Descargar el certificado en PDF", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "PDF en español generado desde la evidencia almacenada: código, fecha de emisión (UTC y America/Bogota), remitente/destinatarios/asunto, message-id, ambos hashes, tabla cronológica de intentos, cadena de respuestas y URL pública de verificación.",
+        "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string", "description": "UUID v4 o short code NX-…" } } ],
+        "responses": { "200": { "description": "Adjunto `certificado-<code>.pdf`", "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } } } }, "404": { "description": "El correo no tiene certificado" } }
+      }
+    },
+    "/api/email/{emailId}/analyze": {
+      "post": {
+        "tags": ["ai"], "summary": "Re-ejecutar el análisis IA de una respuesta", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Solo correos RECEIVED. Síncrono; no reenvía webhooks. Una intención UNSUBSCRIBE_REQUEST agrega una supresión UNSUBSCRIBE del remitente.",
+        "parameters": [ { "name": "emailId", "in": "path", "required": true, "schema": { "type": "string", "description": "UUID v4 o short code NX-…" } } ],
+        "responses": { "200": { "description": "Análisis", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/AiAnalysis" } } } } } }, "400": { "description": "El correo no es una respuesta RECEIVED" }, "503": { "description": "Análisis IA deshabilitado (sin ANTHROPIC_API_KEY) o proveedor no disponible" } }
+      }
+    },
     "/api/email/inbound": {
       "post": {
         "tags": ["email"], "summary": "Ingesta de respuestas (webhook de proveedor de entrada)", "security": [],
-        "description": "Endpoint público de firma: header `X-Nexlify-Inbound-Signature` = HMAC-SHA256 del body crudo con `INBOUND_WEBHOOK_SECRET` (env). Threading por In-Reply-To/References hacia message_id persistido; ingestion idempotente por message_id; adjuntos ≤ 5MB con aislamiento por ítem; los fallos de negocio (no matchear parent) NO cortan la respuesta. Cuando el reply enhebra con un email de un cliente, se encola una entrega webhook por suscripción RECEIVED_REPLY activa (payload con SOLO los campos habilitados).",
+        "description": "Endpoint público de firma: header `X-Nexlify-Inbound-Signature` = HMAC-SHA256 del body crudo con `INBOUND_WEBHOOK_SECRET` (env). Threading por In-Reply-To/References hacia message_id persistido; ingestion idempotente por message_id; adjuntos ≤ 5MB con aislamiento por ítem; los fallos de negocio (no matchear parent) NO cortan la respuesta. Cuando el reply enhebra con un email de un cliente, se encola una entrega webhook por suscripción RECEIVED_REPLY activa (payload con SOLO los campos habilitados). Con `ANTHROPIC_API_KEY` configurada, la respuesta se analiza con IA de forma asíncrona tras persistirse (nunca bloquea ni falla la ingesta) y las entregas RECEIVED_REPLY se encolan al terminar el análisis, con `ai_analysis` para las suscripciones con `include_ai_analysis` (null si el análisis falló).",
         "parameters": [ { "name": "X-Nexlify-Inbound-Signature", "in": "header", "required": true, "schema": { "type": "string", "description": "hex HMAC-SHA256(rawBody, INBOUND_WEBHOOK_SECRET)" } } ],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["sender"], "properties": { "sender": { "type": "string" }, "message_id": { "type": "string" }, "in_reply_to_message_id": { "type": "string" }, "references": { "type": "string" }, "subject": { "type": "string" }, "body_text": { "type": "string" }, "body_html": { "type": "string" }, "received_at": { "type": "string", "format": "date-time" }, "attachments": { "type": "array", "items": { "type": "object", "required": ["filename", "content"], "properties": { "filename": { "type": "string" }, "contentType": { "type": "string" }, "size": { "type": "integer" }, "content": { "type": "string", "description": "base64" } } } } } } } } },
         "responses": { "200": { "description": "{ received: true, email_uuid, parent_email_uuid, threaded, attachments_ingested, attachments_rejected[] }" }, "401": { "description": "Firma de entrada inválida" } }
@@ -182,7 +214,7 @@
       "post": {
         "tags": ["email-events"], "summary": "Suscribirse a eventos de correo", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
         "description": "Para clientes que quieren recibir REPLY_RECEIVED / BOUNCE / etc. vía su endpoint webhook, eligiendo qué campos van en el payload de cada evento (por privacidad, default sin body ni adjuntos).",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["webhook_endpoint_uuid", "events"], "properties": { "webhook_endpoint_uuid": { "type": "string", "format": "uuid" }, "events": { "type": "array", "items": { "type": "string", "enum": ["RECEIVED_REPLY"] } }, "include_body": { "type": "boolean", "default": false }, "include_dates": { "type": "boolean", "default": true }, "include_sender": { "type": "boolean", "default": true }, "include_recipients": { "type": "boolean", "default": true }, "include_attachments": { "type": "boolean", "default": false }, "id_client": { "type": "integer", "description": "solo admin" } } } } } },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["webhook_endpoint_uuid", "events"], "properties": { "webhook_endpoint_uuid": { "type": "string", "format": "uuid" }, "events": { "type": "array", "items": { "type": "string", "enum": ["RECEIVED_REPLY"] } }, "include_body": { "type": "boolean", "default": false }, "include_dates": { "type": "boolean", "default": true }, "include_sender": { "type": "boolean", "default": true }, "include_recipients": { "type": "boolean", "default": true }, "include_attachments": { "type": "boolean", "default": false }, "include_ai_analysis": { "type": "boolean", "default": false, "description": "RECEIVED_REPLY incluye `ai_analysis`" }, "id_client": { "type": "integer", "description": "solo admin" } } } } } },
         "responses": { "200": { "description": "Suscripción creada (uuid)" } }
       }
     },
@@ -196,7 +228,7 @@
       "put": {
         "tags": ["email-events"], "summary": "Actualizar suscripción (eventos, campos, is_active)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
         "parameters": [ { "name": "subscriptionUuid", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "items": { "type": "string" } }, "is_active": { "type": "boolean" }, "include_body": { "type": "boolean" }, "include_dates": { "type": "boolean" }, "include_sender": { "type": "boolean" }, "include_recipients": { "type": "boolean" }, "include_attachments": { "type": "boolean" } } } } } },
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "events": { "type": "array", "items": { "type": "string" } }, "is_active": { "type": "boolean" }, "include_body": { "type": "boolean" }, "include_dates": { "type": "boolean" }, "include_sender": { "type": "boolean" }, "include_recipients": { "type": "boolean" }, "include_attachments": { "type": "boolean" }, "include_ai_analysis": { "type": "boolean" } } } } } },
         "responses": { "200": { "description": "true" }, "404": { "description": "No existe" } }
       }
     },
@@ -220,6 +252,30 @@
         "parameters": [ { "name": "endpointUuid", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "url": { "type": "string", "format": "url" }, "is_active": { "type": "boolean" } } } } } },
         "responses": { "200": { "description": "true" }, "404": { "description": "No existe" } }
+      }
+    },
+    "/api/webhooks/{endpointUuid}/deliveries": {
+      "get": {
+        "tags": ["webhooks"], "summary": "Historial paginado de entregas del endpoint", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Más recientes primero. Solo el propietario o un admin.",
+        "parameters": [ { "name": "endpointUuid", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }, { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } }, { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } } ],
+        "responses": { "200": { "description": "PaginateBaseDTO<WebhookDelivery[]>", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "type": "object", "properties": { "total_items": { "type": "integer" }, "page": { "type": "integer" }, "data": { "type": "array", "items": { "$ref": "#/components/schemas/WebhookDelivery" } } } } } } } } }, "403": { "description": "Endpoint de otro cliente" }, "404": { "description": "No existe" } }
+      }
+    },
+    "/api/webhooks/deliveries/{deliveryId}/redeliver": {
+      "post": {
+        "tags": ["webhooks"], "summary": "Reencolar una entrega", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Reinicia la MISMA fila (attempt 0, ok/status_code/error en null, next_retry_at = ahora); el scheduler la reenvía con su payload almacenado en el siguiente ciclo (≤30 s).",
+        "parameters": [ { "name": "deliveryId", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[1-9][0-9]*$" } } ],
+        "responses": { "200": { "description": "{ queued: true }", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/RedeliverResult" } } } } } }, "403": { "description": "Entrega de otro cliente o endpoint inactivo" }, "404": { "description": "No existe" } }
+      }
+    },
+    "/api/webhooks/{endpointUuid}/test": {
+      "post": {
+        "tags": ["webhooks"], "summary": "Enviar un evento de prueba firmado (ping)", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "POST síncrono de `{ event: \"ping\", endpoint_uuid, sent_at }` con los mismos headers que una entrega real (`X-Nexlify-Event: ping`, `X-Nexlify-Signature` = HMAC-SHA256 hex del body con el secret del endpoint). No se persiste.",
+        "parameters": [ { "name": "endpointUuid", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+        "responses": { "200": { "description": "Resultado", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/WebhookTestResult" } } } } } }, "403": { "description": "Endpoint de otro cliente" }, "404": { "description": "No existe" } }
       }
     },
     "/api/nexlify-keys/generate": {
@@ -306,6 +362,28 @@
         "responses": { "200": { "description": "NexlifyConfigurationDto" } }
       }
     },
+    "/api/stats/overview": {
+      "get": {
+        "tags": ["stats"], "summary": "Resumen del dashboard", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "description": "Clientes: siempre su propio id_client. Admin: todos o `id_client`. Rango por días UTC inclusivos (por defecto últimos 30 días, máximo 366). `delivery_rate` = (SENT+WARNING)/(SENT+WARNING+FAILED+BOUNCED); `bounce_rate` = BOUNCED/(SENT+WARNING+BOUNCED). El presupuesto es el límite diario global menos los SENT/WARNING de hoy.",
+        "parameters": [ { "name": "from", "in": "query", "schema": { "type": "string", "format": "date", "example": "2026-10-07" } }, { "name": "to", "in": "query", "schema": { "type": "string", "format": "date", "example": "2026-11-05" } }, { "name": "id_client", "in": "query", "schema": { "type": "integer" }, "description": "solo admin" } ],
+        "responses": { "200": { "description": "Resumen", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/StatsOverview" } } } } } }, "400": { "description": "Rango inválido" }, "403": { "description": "Cliente consultando otro id_client" } }
+      }
+    },
+    "/api/ai/status": {
+      "get": {
+        "tags": ["ai"], "summary": "Estado de la inteligencia IA", "security": [{ "bearerAuth": [] }, { "ApiKeyAuth": [] }],
+        "responses": { "200": { "description": "{ enabled, model }", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/AiStatus" } } } } } } }
+      }
+    },
+    "/api/certificates/{code}/verify": {
+      "get": {
+        "tags": ["certificates"], "summary": "Verificación pública de un certificado", "security": [],
+        "description": "Público. `valid` = la evidencia almacenada sigue produciendo `evidence_hash` al recalcular su SHA-256. No expone contenido del cuerpo; los destinatarios van enmascarados.",
+        "parameters": [ { "name": "code", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^NXC-[0-9A-Za-z]+$", "example": "NXC-7fK2pQ9xZa" } } ],
+        "responses": { "200": { "description": "Verificación", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" }, "message": { "type": "string" }, "data": { "$ref": "#/components/schemas/CertificateVerification" } } } } } }, "400": { "description": "Código mal formado" }, "404": { "description": "Certificado no encontrado" } }
+      }
+    },
     "/api/master/id-types": {
       "get": {
         "tags": ["master"], "summary": "Tipos de identificación", "security": [{ "bearerAuth": [] }],
@@ -340,7 +418,72 @@
           "size": { "type": "integer" },
           "content": { "type": "string", "description": "base64 (≤5MB por archivo al ingestar)" }
         }
-      }
+      },
+      "AiIntent": { "type": "string", "enum": ["ACCEPT", "REJECT", "QUESTION", "PAYMENT_PROMISE", "COMPLAINT", "OUT_OF_OFFICE", "UNSUBSCRIBE_REQUEST", "OTHER"] },
+      "AiAnalysis": {
+        "type": "object",
+        "properties": {
+          "intent": { "$ref": "#/components/schemas/AiIntent" },
+          "sentiment": { "type": "string", "enum": ["POSITIVE", "NEUTRAL", "NEGATIVE"] },
+          "summary": { "type": "string", "description": "Resumen en español" },
+          "entities": { "type": "object", "properties": { "dates": { "type": "array", "items": { "type": "string" } }, "amounts": { "type": "array", "items": { "type": "string" } }, "references": { "type": "array", "items": { "type": "string" } } } },
+          "analyzed_at": { "type": "string", "format": "date-time" }
+        },
+        "example": { "intent": "PAYMENT_PROMISE", "sentiment": "POSITIVE", "summary": "El cliente se compromete a pagar la factura FE-1001 el viernes.", "entities": { "dates": ["viernes 7 de noviembre"], "amounts": ["$1.200.000"], "references": ["FE-1001"] }, "analyzed_at": "2026-11-05T14:03:22.000Z" }
+      },
+      "AiStatus": { "type": "object", "properties": { "enabled": { "type": "boolean" }, "model": { "type": "string", "example": "claude-opus-5-5" } } },
+      "StatsOverview": {
+        "type": "object",
+        "properties": {
+          "range": { "type": "object", "properties": { "from": { "type": "string", "format": "date" }, "to": { "type": "string", "format": "date" } } },
+          "totals": { "type": "object", "description": "Conteo por cada EmailState (incluye BOUNCED y SUPPRESSED)", "additionalProperties": { "type": "integer" } },
+          "delivery_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "bounce_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "replies": { "type": "integer" },
+          "daily": { "type": "array", "items": { "type": "object", "properties": { "date": { "type": "string", "format": "date" }, "sent": { "type": "integer" }, "failed": { "type": "integer" }, "received": { "type": "integer" } } } },
+          "budget": { "type": "object", "properties": { "daily_limit": { "type": "integer", "nullable": true }, "used_today": { "type": "integer" }, "remaining": { "type": "integer", "nullable": true } } },
+          "ai": { "type": "object", "properties": { "enabled": { "type": "boolean" }, "intents": { "type": "object", "additionalProperties": { "type": "integer" } } } }
+        },
+        "example": { "range": { "from": "2026-11-04", "to": "2026-11-05" }, "totals": { "QUEUED": 0, "SENDING": 0, "SENT": 120, "WARNING": 3, "FAILED": 4, "RETRYING": 1, "RECEIVED": 17, "BOUNCED": 2, "SUPPRESSED": 1 }, "delivery_rate": 0.9535, "bounce_rate": 0.016, "replies": 17, "daily": [{ "date": "2026-11-04", "sent": 60, "failed": 2, "received": 9 }, { "date": "2026-11-05", "sent": 63, "failed": 2, "received": 8 }], "budget": { "daily_limit": 500, "used_today": 63, "remaining": 437 }, "ai": { "enabled": true, "intents": { "ACCEPT": 3, "REJECT": 1, "QUESTION": 5, "PAYMENT_PROMISE": 4, "COMPLAINT": 1, "OUT_OF_OFFICE": 2, "UNSUBSCRIBE_REQUEST": 1, "OTHER": 0 } } }
+      },
+      "Certificate": {
+        "type": "object",
+        "properties": {
+          "certificate_uuid": { "type": "string", "format": "uuid" },
+          "certificate_code": { "type": "string", "example": "NXC-7fK2pQ9xZa" },
+          "issued_at": { "type": "string", "format": "date-time" },
+          "content_hash": { "type": "string", "description": "SHA-256 hex de subject + \"\\n\" + body_html + \"\\n\" + body_text" },
+          "evidence_hash": { "type": "string", "description": "SHA-256 hex de la evidencia canónica" },
+          "verify_url": { "type": "string", "format": "uri", "example": "http://localhost:3600/api/certificates/NXC-7fK2pQ9xZa/verify" }
+        }
+      },
+      "CertificateVerification": {
+        "type": "object",
+        "properties": {
+          "valid": { "type": "boolean" },
+          "certificate_code": { "type": "string" },
+          "issued_at": { "type": "string", "format": "date-time" },
+          "content_hash": { "type": "string" },
+          "evidence_hash": { "type": "string" },
+          "email": { "type": "object", "properties": { "short_code": { "type": "string" }, "subject": { "type": "string" }, "to_email": { "type": "string", "example": "j***@c***.com" }, "sent_at": { "type": "string", "format": "date-time", "nullable": true }, "state": { "type": "string", "nullable": true } } }
+        }
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "properties": {
+          "id_delivery": { "type": "string", "example": "44" },
+          "event": { "type": "string", "example": "RECEIVED_REPLY" },
+          "attempt": { "type": "integer" },
+          "ok": { "type": "boolean", "nullable": true },
+          "status_code": { "type": "integer", "nullable": true },
+          "error": { "type": "string", "nullable": true },
+          "next_retry_at": { "type": "string", "format": "date-time", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "short_code": { "type": "string", "nullable": true }
+        }
+      },
+      "RedeliverResult": { "type": "object", "properties": { "queued": { "type": "boolean", "enum": [true] } } },
+      "WebhookTestResult": { "type": "object", "properties": { "ok": { "type": "boolean" }, "status_code": { "type": "integer", "nullable": true }, "error": { "type": "string", "nullable": true }, "duration_ms": { "type": "integer" } }, "example": { "ok": true, "status_code": 200, "error": null, "duration_ms": 182 } }
     }
   }
 }

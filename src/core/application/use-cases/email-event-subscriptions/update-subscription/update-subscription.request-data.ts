@@ -36,6 +36,10 @@ export class UpdateSubscriptionRequestData {
 
     @IsOptional()
     @IsBoolean()
+    include_ai_analysis?: boolean;
+
+    @IsOptional()
+    @IsBoolean()
     is_active?: boolean;
 }
 

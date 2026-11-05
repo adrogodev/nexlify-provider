@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { InboundEmailUseCase } from './inbound-email.usecase';
+import { ReplyWebhookFanOutService } from '../services/reply-webhook-fanout.service';
 import { EmailDirectionEnum, EmailStateEnum, EmailEventEnum } from 'src/core/domain/enum';
 
 describe('InboundEmailUseCase', () => {
@@ -39,7 +40,7 @@ describe('InboundEmailUseCase', () => {
         updated_at: null,
     };
 
-    const build = (overrides?: { parent?: unknown; createThrows?: boolean; attachmentsCreateThrowsOn?: string; matchingSubscriptions?: unknown[]; fanoutFails?: boolean }) => {
+    const build = (overrides?: { parent?: unknown; createThrows?: boolean; attachmentsCreateThrowsOn?: string; matchingSubscriptions?: unknown[]; fanoutFails?: boolean; aiEnabled?: boolean; analysisRejects?: boolean }) => {
         let created = 0;
         // Without an explicit `parent: undefined` override the mock resolves the
         // shared parentEmail row (threaded flows); with it, nothing matches.
@@ -88,7 +89,14 @@ describe('InboundEmailUseCase', () => {
                 return row;
             }),
         } as never;
-        const useCase = new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen, subscriptionsRepo, deliveriesRepo);
+        const fanOutService = new ReplyWebhookFanOutService(attachmentsRepo, subscriptionsRepo, deliveriesRepo);
+        const replyAnalysis = {
+            isEnabled: jest.fn(() => overrides?.aiEnabled === true),
+            analyzeAndFanOut: jest.fn(async () => {
+                if (overrides?.analysisRejects) throw new Error('analysis boom');
+            }),
+        };
+        const useCase = new InboundEmailUseCase(emailsRepo, attachmentsRepo, idGen, fanOutService, replyAnalysis as never);
         return {
             useCase,
             emailsRepo: emailsRepo as unknown as { findByMessageId: jest.Mock; create: jest.Mock },
@@ -96,6 +104,7 @@ describe('InboundEmailUseCase', () => {
             idGen: idGen as unknown as { generateShortCode: jest.Mock; generateUuid: jest.Mock },
             subscriptionsRepo: subscriptionsRepo as unknown as { findActiveByClientIdAndEvent: jest.Mock },
             deliveriesRepo: deliveriesRepo as unknown as { create: jest.Mock },
+            replyAnalysis,
         };
     };
 
@@ -441,6 +450,42 @@ describe('InboundEmailUseCase', () => {
                 expect((payload['attachments'] as unknown[]).some((item) => JSON.stringify(item).includes(Buffer.from('binario').toString('base64')))).toBe(false);
                 expect(Object.keys(payload)).toEqual(expect.not.arrayContaining(['body', 'sender', 'recipients', 'dates']));
             });
+        });
+    });
+
+    describe('AI reply intelligence hand-off (S8)', () => {
+        const threadedInput = () => input({ message_id: '<reply-ai@test.local>', in_reply_to_message_id: '<parent@server.local>', body_text: 'Pago el viernes' });
+
+        it('fans out immediately and never calls the analysis when AI is disabled', async () => {
+            const { useCase, deliveriesRepo, replyAnalysis } = build({ aiEnabled: false });
+
+            const result = await useCase.run({ data: threadedInput() as never });
+
+            expect(result.threaded).toBe(true);
+            expect(replyAnalysis.analyzeAndFanOut).not.toHaveBeenCalled();
+            expect(deliveriesRepo.create).toHaveBeenCalledTimes(1);
+            const payload = JSON.parse(deliveriesRepo.create.mock.calls[0][0].payload);
+            expect(payload).not.toHaveProperty('ai_analysis');
+        });
+
+        it('hands the persisted reply and its parent to the async analysis instead of fanning out inline', async () => {
+            const { useCase, deliveriesRepo, replyAnalysis } = build({ aiEnabled: true });
+
+            const result = await useCase.run({ data: threadedInput() as never });
+
+            expect(result.received).toBe(true);
+            expect(replyAnalysis.analyzeAndFanOut).toHaveBeenCalledTimes(1);
+            const [reply, parent] = replyAnalysis.analyzeAndFanOut.mock.calls[0] as unknown as [{ email_uuid: string }, { email_uuid: string }];
+            expect(reply.email_uuid).toBe(result.email_uuid);
+            expect(parent.email_uuid).toBe(parentEmail.email_uuid);
+            expect(deliveriesRepo.create).not.toHaveBeenCalled();
+        });
+
+        it('never rejects the ingestion when the async analysis pipeline fails', async () => {
+            const { useCase, replyAnalysis } = build({ aiEnabled: true, analysisRejects: true });
+
+            await expect(useCase.run({ data: threadedInput() as never })).resolves.toMatchObject({ received: true, duplicate: false });
+            expect(replyAnalysis.analyzeAndFanOut).toHaveBeenCalledTimes(1);
         });
     });
 });

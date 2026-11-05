@@ -17,4 +17,7 @@ export const AppEnvs: Readonly<ApplicationEnvs> = Object.freeze<ApplicationEnvs>
     JWT_EXPIRATION_TIME: env.get("JWT_EXPIRATION_TIME").required().asInt(),
     ENCRYPT_KEY: env.get("ENCRYPT_KEY").required().asString(),
     INBOUND_WEBHOOK_SECRET: env.get("INBOUND_WEBHOOK_SECRET").required().asString(),
+    PUBLIC_API_URL: env.get("PUBLIC_API_URL").default(`http://localhost:${env.get("PORT").required().asPortNumber()}`).asString().replace(/\/+$/, ""),
+    ANTHROPIC_API_KEY: env.get("ANTHROPIC_API_KEY").asString() || undefined,
+    ANTHROPIC_MODEL: env.get("ANTHROPIC_MODEL").default("claude-opus-5-5").asString(),
 })

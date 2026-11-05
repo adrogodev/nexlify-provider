@@ -11,6 +11,7 @@ export interface SubscriptionDTO {
     include_sender: boolean;
     include_recipients: boolean;
     include_attachments: boolean;
+    include_ai_analysis: boolean;
     is_active: boolean;
     created_at: Date | null;
     updated_at: Date | null;
@@ -34,6 +35,7 @@ export function toSubscriptionDTO(subscription: EmailEventSubscription): Subscri
         include_sender: subscription.include_sender,
         include_recipients: subscription.include_recipients,
         include_attachments: subscription.include_attachments,
+        include_ai_analysis: subscription.include_ai_analysis ?? false,
         is_active: subscription.is_active,
         created_at: subscription.created_at,
         updated_at: subscription.updated_at,

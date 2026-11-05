@@ -19,6 +19,13 @@ export class Email {
         public updated_at: Nullable<Date>,
         public message_id: Nullable<string>,
         public direction: EmailDirectionEnum,
-        public parent_email_id: Nullable<bigint>
+        public parent_email_id: Nullable<bigint>,
+        /** S8 AI reply intelligence: filled asynchronously after inbound ingestion. */
+        public ai_intent?: Nullable<string>,
+        public ai_sentiment?: Nullable<string>,
+        public ai_summary?: Nullable<string>,
+        /** JSON of the extracted entities ({ dates, amounts, references }). */
+        public ai_data?: Nullable<string>,
+        public ai_analyzed_at?: Nullable<Date>
     ) { }
 }

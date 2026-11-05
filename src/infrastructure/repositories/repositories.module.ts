@@ -17,6 +17,10 @@ import { UsersRepository } from './users.repository';
 import { TemplatesRepository } from './templates.repository';
 import { WebhookDeliveriesRepository } from './webhook-delivery.repository';
 import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
+import { EMAIL_CERTIFICATES_REPOSITORY, EMAIL_STATS_REPOSITORY, UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY } from 'src/core/application/contracts/persistence';
+import { EmailCertificatesRepository } from './email-certificates.repository';
+import { EmailStatsRepository } from './email-stats.repository';
+import { UnsubscribeSuppressionsRepository } from './unsubscribe-suppressions.repository';
 
 @Module({
     imports: [PrismaModule],
@@ -85,6 +89,18 @@ import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
             provide: WEBHOOK_DELIVERIES_REPOSITORY,
             useClass: WebhookDeliveriesRepository
         },
+        {
+            provide: EMAIL_CERTIFICATES_REPOSITORY,
+            useClass: EmailCertificatesRepository
+        },
+        {
+            provide: EMAIL_STATS_REPOSITORY,
+            useClass: EmailStatsRepository
+        },
+        {
+            provide: UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY,
+            useClass: UnsubscribeSuppressionsRepository
+        },
     ],
     exports: [
         ADMIN_USER_REPOSITORY,
@@ -102,7 +118,10 @@ import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
         USERS_REPOSITORY,
         TEMPLATES_REPOSITORY,
         WEBHOOK_ENDPOINTS_REPOSITORY,
-        WEBHOOK_DELIVERIES_REPOSITORY
+        WEBHOOK_DELIVERIES_REPOSITORY,
+        EMAIL_CERTIFICATES_REPOSITORY,
+        EMAIL_STATS_REPOSITORY,
+        UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY
     ],
 })
 

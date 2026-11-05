@@ -5,4 +5,6 @@ export interface IAppConfig {
     JWT_EXPIRATION_TIME: number;
     ENCRYPT_KEY: string;
     PLATFORM_URL: string;
+    /** Public base URL of this API (certificate verification links). */
+    PUBLIC_API_URL: string;
 }

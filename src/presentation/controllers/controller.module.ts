@@ -1,3 +1,4 @@
+import { colors } from '@gamastudio/colorslog';
 import { Module } from '@nestjs/common';
 import {
     APP_CONFIG,
@@ -7,6 +8,7 @@ import {
     JWT_GENERATOR,
     PASSWORD_HASHER,
     REQUEST_CONTEXT,
+    WEBHOOK_SIGNER,
 } from 'src/core/application/contracts/infrastructure';
 import {
     ADMIN_USER_REPOSITORY,
@@ -23,14 +25,19 @@ import {
     SMTP_SERVER_REPOSITORY,
     WEBHOOK_DELIVERIES_REPOSITORY,
     WEBHOOK_ENDPOINTS_REPOSITORY,
+    EMAIL_CERTIFICATES_REPOSITORY,
+    EMAIL_STATS_REPOSITORY,
+    UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY,
 } from 'src/core/application/contracts/persistence';
 import {
     TEMPLATES_REPOSITORY,
     USERS_REPOSITORY,
 } from 'src/core/application/contracts/persistence';
 import {
+    CERTIFICATE_PDF_RENDERER,
     HTTP_DELIVERY_SERVICE,
     MAILER_SERVICE,
+    REPLY_ANALYZER,
 } from 'src/core/application/contracts/services';
 import { TEMPLATE_SERVICE } from 'src/core/application/contracts/services/template.service';
 import {
@@ -61,6 +68,19 @@ import { RetryDueEmailsUseCase } from 'src/core/application/use-cases/email/retr
 import { RetryEmailUseCase } from 'src/core/application/use-cases/email/retry-email/retry-email.usecase';
 import { SendEmailUseCase } from 'src/core/application/use-cases/email/send-email/send-email.usecase';
 import { EmailAttemptService } from 'src/core/application/use-cases/email/services/email-attempt.service';
+import { ReplyWebhookFanOutService } from 'src/core/application/use-cases/email/services/reply-webhook-fanout.service';
+import {
+    AnalyzeEmailUseCase,
+    GetAiStatusUseCase,
+    ReplyAnalysisService,
+} from 'src/core/application/use-cases/email/analyze-reply';
+import {
+    GetCertificatePdfUseCase,
+    GetCertificateUseCase,
+    IssueCertificateUseCase,
+    VerifyCertificateUseCase,
+} from 'src/core/application/use-cases/certificates';
+import { GetStatsOverviewUseCase } from 'src/core/application/use-cases/stats';
 import { IdTypesUseCase } from 'src/core/application/use-cases/master';
 import {
     AddNexlifyConfigurationUseCase,
@@ -86,7 +106,10 @@ import {
 import { VerifyCredentialAssignmentTokenUseCase } from 'src/core/application/use-cases/verify';
 import {
     ListMyWebhookEndpointsUseCase,
+    ListWebhookDeliveriesUseCase,
+    RedeliverWebhookDeliveryUseCase,
     RegisterWebhookEndpointUseCase,
+    TestWebhookEndpointUseCase,
     UpdateWebhookEndpointUseCase,
 } from 'src/core/application/use-cases/webhooks';
 import {
@@ -107,6 +130,8 @@ import { AdminUserController } from './admin-user.controller';
 import { ClientContoller } from './client.controller';
 import { EmailEventSubscriptionsController } from './email-event-subscriptions.controller';
 import { EmailController } from './email.controller';
+import { EmailIntelligenceController } from './email-intelligence.controller';
+import { AiController, CertificatesController, StatsController } from './insights.controller';
 import { InboundEmailController } from './inbound-email.controller';
 import { MasterController } from './master.controller';
 import { NexlifyConfigurationController } from './nexlify-configuration.controller';
@@ -138,6 +163,10 @@ import { WebhooksController } from './webhooks.controller';
         TemplatesController,
         WebhooksController,
         EmailEventSubscriptionsController,
+        EmailIntelligenceController,
+        StatsController,
+        AiController,
+        CertificatesController,
     ],
     providers: [
         AuthGuard,
@@ -284,28 +313,134 @@ import { WebhooksController } from './webhooks.controller';
             ],
         },
         {
+            provide: ReplyWebhookFanOutService,
+            useFactory: (attachmentsRepo, subscriptionsRepo, webhookDeliveriesRepo) =>
+                new ReplyWebhookFanOutService(
+                    attachmentsRepo,
+                    subscriptionsRepo,
+                    webhookDeliveriesRepo,
+                ),
+            inject: [
+                EMAIL_ATTACHMENTS_REPOSITORY,
+                EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY,
+                WEBHOOK_DELIVERIES_REPOSITORY,
+            ],
+        },
+        {
+            provide: ReplyAnalysisService,
+            useFactory: (replyAnalyzer, emailsRepo, suppressionsRepo, fanOut) =>
+                new ReplyAnalysisService(
+                    replyAnalyzer,
+                    emailsRepo,
+                    suppressionsRepo,
+                    fanOut,
+                    (message: string) => colors.error(message, { dateShow: false }),
+                ),
+            inject: [
+                REPLY_ANALYZER,
+                EMAILS_REPOSITORY,
+                UNSUBSCRIBE_SUPPRESSIONS_REPOSITORY,
+                ReplyWebhookFanOutService,
+            ],
+        },
+        {
             provide: InboundEmailUseCase,
-            useFactory: (
-                emailsRepo,
-                attachmentsRepo,
-                idGen,
-                subscriptionsRepo,
-                webhookDeliveriesRepo,
-            ) =>
+            useFactory: (emailsRepo, attachmentsRepo, idGen, fanOut, replyAnalysis) =>
                 new InboundEmailUseCase(
                     emailsRepo,
                     attachmentsRepo,
                     idGen,
-                    subscriptionsRepo,
-                    webhookDeliveriesRepo,
+                    fanOut,
+                    replyAnalysis,
                 ),
             inject: [
                 EMAILS_REPOSITORY,
                 EMAIL_ATTACHMENTS_REPOSITORY,
                 ID_GENERATOR,
-                EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY,
-                WEBHOOK_DELIVERIES_REPOSITORY,
+                ReplyWebhookFanOutService,
+                ReplyAnalysisService,
             ],
+        },
+        {
+            provide: AnalyzeEmailUseCase,
+            useFactory: (context, emailsRepo, replyAnalysis) =>
+                new AnalyzeEmailUseCase(context, emailsRepo, replyAnalysis),
+            inject: [REQUEST_CONTEXT, EMAILS_REPOSITORY, ReplyAnalysisService],
+        },
+        {
+            provide: GetAiStatusUseCase,
+            useFactory: (replyAnalyzer) => new GetAiStatusUseCase(replyAnalyzer),
+            inject: [REPLY_ANALYZER],
+        },
+        {
+            provide: GetStatsOverviewUseCase,
+            useFactory: (context, statsRepo, emailsRepo, configRepo, replyAnalyzer) =>
+                new GetStatsOverviewUseCase(
+                    context,
+                    statsRepo,
+                    emailsRepo,
+                    configRepo,
+                    replyAnalyzer,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                EMAIL_STATS_REPOSITORY,
+                EMAILS_REPOSITORY,
+                NEXLIFY_CONFIGURATION_REPOSITORY,
+                REPLY_ANALYZER,
+            ],
+        },
+        {
+            provide: IssueCertificateUseCase,
+            useFactory: (context, emailsRepo, logsRepo, certificatesRepo, hashGen, idGen, appConfig) =>
+                new IssueCertificateUseCase(
+                    context,
+                    emailsRepo,
+                    logsRepo,
+                    certificatesRepo,
+                    hashGen,
+                    idGen,
+                    appConfig,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                EMAILS_REPOSITORY,
+                EMAIL_SEND_LOGS_REPOSITORY,
+                EMAIL_CERTIFICATES_REPOSITORY,
+                HASH_GENERATOR,
+                ID_GENERATOR,
+                APP_CONFIG,
+            ],
+        },
+        {
+            provide: GetCertificateUseCase,
+            useFactory: (context, emailsRepo, certificatesRepo, appConfig) =>
+                new GetCertificateUseCase(context, emailsRepo, certificatesRepo, appConfig),
+            inject: [REQUEST_CONTEXT, EMAILS_REPOSITORY, EMAIL_CERTIFICATES_REPOSITORY, APP_CONFIG],
+        },
+        {
+            provide: GetCertificatePdfUseCase,
+            useFactory: (context, emailsRepo, certificatesRepo, pdfRenderer, appConfig) =>
+                new GetCertificatePdfUseCase(
+                    context,
+                    emailsRepo,
+                    certificatesRepo,
+                    pdfRenderer,
+                    appConfig,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                EMAILS_REPOSITORY,
+                EMAIL_CERTIFICATES_REPOSITORY,
+                CERTIFICATE_PDF_RENDERER,
+                APP_CONFIG,
+            ],
+        },
+        {
+            provide: VerifyCertificateUseCase,
+            useFactory: (certificatesRepo, emailsRepo, hashGen) =>
+                new VerifyCertificateUseCase(certificatesRepo, emailsRepo, hashGen),
+            inject: [EMAIL_CERTIFICATES_REPOSITORY, EMAILS_REPOSITORY, HASH_GENERATOR],
         },
         {
             provide: InboundWebhookSecurityService,
@@ -620,6 +755,50 @@ import { WebhooksController } from './webhooks.controller';
             useFactory: (context, webhookEndpointsRepo) =>
                 new UpdateWebhookEndpointUseCase(context, webhookEndpointsRepo),
             inject: [REQUEST_CONTEXT, WEBHOOK_ENDPOINTS_REPOSITORY],
+        },
+        {
+            provide: ListWebhookDeliveriesUseCase,
+            useFactory: (context, webhookEndpointsRepo, webhookDeliveriesRepo) =>
+                new ListWebhookDeliveriesUseCase(
+                    context,
+                    webhookEndpointsRepo,
+                    webhookDeliveriesRepo,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                WEBHOOK_ENDPOINTS_REPOSITORY,
+                WEBHOOK_DELIVERIES_REPOSITORY,
+            ],
+        },
+        {
+            provide: RedeliverWebhookDeliveryUseCase,
+            useFactory: (context, webhookEndpointsRepo, webhookDeliveriesRepo) =>
+                new RedeliverWebhookDeliveryUseCase(
+                    context,
+                    webhookEndpointsRepo,
+                    webhookDeliveriesRepo,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                WEBHOOK_ENDPOINTS_REPOSITORY,
+                WEBHOOK_DELIVERIES_REPOSITORY,
+            ],
+        },
+        {
+            provide: TestWebhookEndpointUseCase,
+            useFactory: (context, webhookEndpointsRepo, httpDeliveryService, webhookSigner) =>
+                new TestWebhookEndpointUseCase(
+                    context,
+                    webhookEndpointsRepo,
+                    httpDeliveryService,
+                    webhookSigner,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                WEBHOOK_ENDPOINTS_REPOSITORY,
+                HTTP_DELIVERY_SERVICE,
+                WEBHOOK_SIGNER,
+            ],
         },
         {
             provide: CreateSubscriptionUseCase,

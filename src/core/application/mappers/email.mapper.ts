@@ -1,6 +1,7 @@
 import { Email } from "src/core/domain/entities/email.entity";
 import { EmailAttachment } from "src/core/domain/entities/email-attachment.entity";
 import { EmailSendLog } from "src/core/domain/entities/email-send-log.entity";
+import { toAiAnalysisDTO } from "../use-cases/email/analyze-reply/ai-analysis.dto";
 import { EmailAttachmentMetadataDTO, EmailDetailDTO, EmailDTO, EmailListItemDTO, EmailSendLogDTO } from "../dtos";
 
 export class EmailMapper {
@@ -29,7 +30,8 @@ export class EmailMapper {
             subject: email.subject,
             state: email.state,
             attempts: email.attempts,
-            created_at: email.created_at
+            created_at: email.created_at,
+            ai_intent: email.ai_intent ?? null
         };
     }
 
@@ -49,7 +51,8 @@ export class EmailMapper {
                 filename: attachment.filename,
                 content_type: attachment.content_type,
                 size_bytes: attachment.size_bytes
-            }))
+            })),
+            ai_analysis: toAiAnalysisDTO(email)
         };
     }
 }

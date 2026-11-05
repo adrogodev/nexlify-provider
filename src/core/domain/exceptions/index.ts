@@ -5,3 +5,4 @@ export * from './not-match.exception';
 export * from './unauthenticated.exception';
 export * from './unauthorized.exception';
 export * from './validation.exception';
+export * from './service-unavailable.exception';
