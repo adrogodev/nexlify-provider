@@ -1,0 +1,76 @@
+# Full Nexlify stack: PostgreSQL + provider API + Next.js front + Mailpit (local SMTP sink).
+# Expected layout (sibling repositories):
+#   <root>/nexlify-provider   (this repo; this file lives in deploy/)
+#   <root>/nexlify            (front repo)
+# Usage:
+#   cp deploy/.env.example deploy/.env   # then fill the secrets
+#   docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+
+name: nexlify
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nexlify}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-nexlify}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nexlify} -d ${POSTGRES_DB:-nexlify}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    profiles: ["local"]
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+  provider:
+    build:
+      context: ..
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 3600
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nexlify}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nexlify}
+      ADMIN_USER: ${ADMIN_USER:?set ADMIN_USER}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      PLATFORM_URL: ${PLATFORM_URL:-http://localhost:3000}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3600}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY}
+      JWT_EXPIRATION_TIME: ${JWT_EXPIRATION_TIME:-8}
+      ENCRYPT_KEY: ${ENCRYPT_KEY:?set ENCRYPT_KEY}
+      INBOUND_WEBHOOK_SECRET: ${INBOUND_WEBHOOK_SECRET:?set INBOUND_WEBHOOK_SECRET}
+      MAILER_TLS_REJECT_UNAUTHORIZED: ${MAILER_TLS_REJECT_UNAUTHORIZED:-true}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5-5}
+      RUN_MIGRATIONS: "true"
+      RUN_SEED: ${RUN_SEED:-true}
+    ports:
+      - "${PROVIDER_PORT:-3600}:3600"
+
+  front:
+    build:
+      context: ../../nexlify
+    restart: unless-stopped
+    depends_on:
+      provider:
+        condition: service_healthy
+    environment:
+      API_URL: http://provider:3600
+      API_URN: /api
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3600}
+    ports:
+      - "${FRONT_PORT:-3000}:3000"
+
+volumes:
+  pgdata:
