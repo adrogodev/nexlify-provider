@@ -99,6 +99,9 @@ model templates {
   subject     String?   @db.VarChar(255)
   template    String?
   is_active   Boolean?
+  variables   String?   @db.Text
+  category    String?   @db.VarChar(50)
+  locale      String?   @default("es") @db.VarChar(10)
   created_at  DateTime? @default(now()) @db.Timestamptz(6)
   updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 }
@@ -168,6 +171,16 @@ enum EmailState {
   FAILED
   RETRYING
   RECEIVED
+  BOUNCED
+  SUPPRESSED
+}
+
+enum SuppressionReason {
+  HARD_BOUNCE
+  SOFT_BOUNCE
+  COMPLAINT
+  UNSUBSCRIBE
+  MANUAL
 }
 
 enum EmailLogLevel {
@@ -193,6 +206,15 @@ model emails {
   message_id  String?    @db.VarChar(255)
   direction   EmailDirection @default(SENT)
   parent_email_id BigInt?
+  id_template String?    @db.Uuid
+  template_variables String? @db.Text
+  content_hash String?   @db.VarChar(64)
+  bounced_at  DateTime?
+  ai_intent   String?    @db.VarChar(30)
+  ai_sentiment String?   @db.VarChar(20)
+  ai_summary  String?    @db.Text
+  ai_data     String?    @db.Text
+  ai_analyzed_at DateTime?
   created_at  DateTime?  @default(now()) @db.Timestamptz(6)
   updated_at  DateTime?  @default(now()) @db.Timestamptz(6)
 
@@ -235,6 +257,7 @@ model email_event_subscriptions {
   include_sender      Boolean   @default(true)
   include_recipients  Boolean   @default(true)
   include_attachments Boolean   @default(false)
+  include_ai_analysis Boolean   @default(false)
   is_active           Boolean   @default(true)
   created_at          DateTime? @default(now()) @db.Timestamptz(6)
   updated_at          DateTime? @default(now()) @db.Timestamptz(6)
@@ -266,4 +289,46 @@ model webhook_deliveries {
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
 
   @@index([next_retry_at])
+}
+
+model sending_domains {
+  id_domain        BigInt    @id @default(autoincrement())
+  domain_uuid      String    @unique @db.Uuid @default(dbgenerated("gen_random_uuid()"))
+  id_client        BigInt?
+  domain           String    @unique @db.VarChar(255)
+  dkim_selector    String    @default("nexlify") @db.VarChar(63)
+  dkim_public_key  String    @db.Text
+  dkim_private_key String    @db.Text
+  spf_verified     Boolean   @default(false)
+  dkim_verified    Boolean   @default(false)
+  dmarc_verified   Boolean   @default(false)
+  last_checked_at  DateTime? @db.Timestamptz(6)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model suppressions {
+  id_suppression  BigInt            @id @default(autoincrement())
+  suppression_uuid String           @unique @db.Uuid @default(dbgenerated("gen_random_uuid()"))
+  id_client       BigInt?
+  email           String            @db.VarChar(255)
+  reason          SuppressionReason
+  source_email_id BigInt?
+  details         String?           @db.VarChar(500)
+  created_at      DateTime?         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
+
+  @@index([email])
+}
+
+model email_certificates {
+  id_certificate   BigInt    @id @default(autoincrement())
+  certificate_uuid String    @unique @db.Uuid @default(dbgenerated("gen_random_uuid()"))
+  certificate_code String    @unique @db.VarChar(30)
+  id_email         BigInt    @unique
+  content_hash     String    @db.VarChar(64)
+  evidence_hash    String    @db.VarChar(64)
+  evidence         String    @db.Text
+  issued_at        DateTime  @default(now()) @db.Timestamptz(6)
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
 }
