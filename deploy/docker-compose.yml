@@ -3,7 +3,7 @@
 #   <root>/nexlify-provider   (this repo; this file lives in deploy/)
 #   <root>/nexlify            (front repo)
 # Usage:
-#   cp deploy/.env.example deploy/.env   # then fill the secrets
+#   cp deploy/stack.env.example deploy/.env   # then fill the secrets
 #   docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
 
 name: nexlify
