@@ -1,0 +1,7 @@
+export enum SuppressionReasonEnum {
+    HARD_BOUNCE = 'HARD_BOUNCE',
+    SOFT_BOUNCE = 'SOFT_BOUNCE',
+    COMPLAINT = 'COMPLAINT',
+    UNSUBSCRIBE = 'UNSUBSCRIBE',
+    MANUAL = 'MANUAL',
+}

@@ -19,6 +19,12 @@ export class Email {
         public updated_at: Nullable<Date>,
         public message_id: Nullable<string>,
         public direction: EmailDirectionEnum,
-        public parent_email_id: Nullable<bigint>
+        public parent_email_id: Nullable<bigint>,
+        /** Template used to render the email (S2). */
+        public id_template?: Nullable<string>,
+        /** JSON-serialized variables object used to render the template (S2). */
+        public template_variables?: Nullable<string>,
+        /** When a hard bounce / complaint was reported (S5). */
+        public bounced_at?: Nullable<Date>,
     ) { }
 }

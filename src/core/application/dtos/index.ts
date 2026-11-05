@@ -6,3 +6,5 @@ export * from './nexlify-configuration.dto';
 export * from './template.dto';
 export * from './user-data.dto';
 export * from './user.dto';
+export * from './sending-domain.dto';
+export * from './suppression.dto';

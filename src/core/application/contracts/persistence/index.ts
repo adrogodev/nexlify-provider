@@ -15,3 +15,5 @@ export * from './templates.repository';
 export * from './users.repository';
 export * from './webhook-delivery.repository';
 export * from './webhook-endpoint.repository';
+export * from './sending-domains.repository';
+export * from './suppressions.repository';

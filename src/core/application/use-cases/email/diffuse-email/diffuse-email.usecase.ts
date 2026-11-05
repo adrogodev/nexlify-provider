@@ -4,6 +4,7 @@ import { UseCase, UseCaseArgs } from "src/core/domain/models";
 import { ActionNotAllowedException } from "src/core/domain/exceptions";
 import { EmailStateEnum } from "src/core/domain/enum";
 import { DiffuseEmailInput } from "../email.request-data";
+import { TemplateContentService } from "../services/template-content.service";
 
 export interface DiffuseEmailResultDTO {
     queued: number;
@@ -20,10 +21,11 @@ export class DiffuseEmailUseCase implements UseCase<DiffuseEmailInput, DiffuseEm
         private readonly _nexlifyConfigurationRepository: INexlifyConfigurationRepository,
         private readonly _emailsRepository: IEmailsRepository,
         private readonly _idGenerator: IIdGenerator,
+        private readonly _templateContentService: TemplateContentService,
     ) { }
 
     public run = async (args: UseCaseArgs<DiffuseEmailInput>): Promise<DiffuseEmailResultDTO> => {
-        const { to, subject, html, text } = args.data;
+        const { to, subject, html, text, id_template, variables } = args.data;
 
         const configuration = await this._nexlifyConfigurationRepository.findConfiguration();
         if (configuration === null) {
@@ -37,6 +39,9 @@ export class DiffuseEmailUseCase implements UseCase<DiffuseEmailInput, DiffuseEm
             );
         }
 
+        // Rendered once: every recipient receives the same content (S2).
+        const content = await this._templateContentService.resolve({ id_template, variables, subject, html, text });
+
         const shortCodes: string[] = [];
         for (const recipient of to) {
             const persisted = await this._emailsRepository.create({
@@ -44,9 +49,11 @@ export class DiffuseEmailUseCase implements UseCase<DiffuseEmailInput, DiffuseEm
                 id_client: null,
                 from_email: configuration.sender_email,
                 to_email: recipient,
-                subject,
-                body_html: html ?? null,
-                body_text: text ?? null,
+                subject: content.subject,
+                body_html: content.html,
+                body_text: content.text,
+                id_template: content.id_template,
+                template_variables: content.template_variables,
                 state: EmailStateEnum.QUEUED,
                 attempts: 0,
                 next_retry_at: null,

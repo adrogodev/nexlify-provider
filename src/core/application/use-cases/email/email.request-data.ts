@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEmail, IsEnum, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, Min, Validate, ValidateIf, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
 import { EmailStateEnum } from 'src/core/domain/enum';
 
 @ValidatorConstraint({ name: 'email-id', async: false })
@@ -77,9 +77,11 @@ export class DiffuseEmailRequestData {
     @IsEmail({}, { each: true })
     to: string[];
 
+    /** Optional when `id_template` is given (the template subject is used). */
+    @ValidateIf((o: DiffuseEmailRequestData) => !o.id_template || o.subject !== undefined)
     @IsString()
     @IsNotEmpty()
-    subject: string;
+    subject?: string;
 
     @IsOptional()
     @IsString()
@@ -88,6 +90,15 @@ export class DiffuseEmailRequestData {
     @IsOptional()
     @IsString()
     text?: string;
+
+    /** S2: one template rendered with the same variables for every recipient. */
+    @IsOptional()
+    @IsUUID()
+    id_template?: string;
+
+    @IsOptional()
+    @IsObject()
+    variables?: Record<string, string>;
 }
 
 export type DiffuseEmailInput = DiffuseEmailRequestData;

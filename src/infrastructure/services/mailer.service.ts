@@ -20,7 +20,9 @@ export class MailerService implements IMailerService {
                 subject: data.subject,
                 html: data.html,
                 text: data.text,
-                attachments: data.attachments
+                attachments: data.attachments,
+                ...(data.headers !== undefined ? { headers: data.headers } : {}),
+                ...(data.dkim !== undefined ? { dkim: data.dkim } : {}),
             })
 
             const result: MailerResult = { ok: true, message: 'Correo enviado con exito' };

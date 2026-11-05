@@ -17,6 +17,9 @@ import { UsersRepository } from './users.repository';
 import { TemplatesRepository } from './templates.repository';
 import { WebhookDeliveriesRepository } from './webhook-delivery.repository';
 import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
+import { SENDING_DOMAINS_REPOSITORY, SUPPRESSIONS_REPOSITORY } from 'src/core/application/contracts/persistence';
+import { SendingDomainsRepository } from './sending-domains.repository';
+import { SuppressionsRepository } from './suppressions.repository';
 
 @Module({
     imports: [PrismaModule],
@@ -85,6 +88,15 @@ import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
             provide: WEBHOOK_DELIVERIES_REPOSITORY,
             useClass: WebhookDeliveriesRepository
         },
+        // S4/S5 (send pipeline)
+        {
+            provide: SENDING_DOMAINS_REPOSITORY,
+            useClass: SendingDomainsRepository
+        },
+        {
+            provide: SUPPRESSIONS_REPOSITORY,
+            useClass: SuppressionsRepository
+        },
     ],
     exports: [
         ADMIN_USER_REPOSITORY,
@@ -102,7 +114,9 @@ import { WebhookEndpointsRepository } from './webhook-endpoint.repository';
         USERS_REPOSITORY,
         TEMPLATES_REPOSITORY,
         WEBHOOK_ENDPOINTS_REPOSITORY,
-        WEBHOOK_DELIVERIES_REPOSITORY
+        WEBHOOK_DELIVERIES_REPOSITORY,
+        SENDING_DOMAINS_REPOSITORY,
+        SUPPRESSIONS_REPOSITORY,
     ],
 })
 

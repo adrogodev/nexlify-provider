@@ -5,6 +5,7 @@ export const TEMPLATES_REPOSITORY = Symbol('ITemplatesRepository');
 
 export interface GetTemplatesFilters {
     is_active?: boolean;
+    category?: string;
     page?: number;
     limit?: number;
 }

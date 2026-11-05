@@ -26,6 +26,7 @@ export class TemplatesRepository extends BaseRepository<Template, 'id_template'>
     #buildFilters(filters: GetTemplatesFilters): Record<string, unknown> {
         return {
             is_active: filters.is_active,
+            category: filters.category,
         };
     }
 }

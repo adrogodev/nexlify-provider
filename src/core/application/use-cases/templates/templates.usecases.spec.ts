@@ -76,6 +76,59 @@ describe('Templates CRUD use cases', () => {
         });
     });
 
+    describe('Template variables, category and locale (S2)', () => {
+        it('stores declared variables as JSON and returns them as an array with category/locale', async () => {
+            const useCase = new CreateTemplateUseCase(contextFor({ id_user: 1, is_admin: true }), templatesRepo);
+
+            const result = await useCase.run({
+                data: { name: 'Factura', subject: 'F {{numero}}', template: '<p>{{nombre}}</p>', variables: ['numero', 'nombre'], category: 'facturacion', locale: 'es' },
+            } as never);
+
+            const createPayload = (templatesRepo as any).create.mock.calls[0][0];
+            expect(JSON.parse(createPayload.variables)).toEqual(['numero', 'nombre']);
+            expect(createPayload.category).toBe('facturacion');
+            expect(createPayload.locale).toBe('es');
+            expect(result.variables).toEqual(['numero', 'nombre']);
+            expect(result.category).toBe('facturacion');
+            expect(result.locale).toBe('es');
+        });
+
+        it('returns an empty variables array and null category/locale for legacy templates', async () => {
+            allTemplates.push({ id_template: 'a', name: 'A', is_active: true, variables: null });
+            allTemplates.push({ id_template: 'b', name: 'B', is_active: true, variables: 'not-json' });
+            const useCase = new GetTemplatesUseCase(contextFor({ id_user: 1, is_admin: true }), templatesRepo);
+
+            const result = await useCase.run({ data: {} } as never);
+
+            expect(result.data.map((t) => t.variables)).toEqual([[], []]);
+            expect(result.data[0].category).toBeNull();
+            expect(result.data[0].locale).toBeNull();
+        });
+
+        it('passes the category filter to the repository', async () => {
+            const useCase = new GetTemplatesUseCase(contextFor({ id_user: 10, is_admin: false }), templatesRepo);
+
+            await useCase.run({ data: { category: 'cobranza' } } as never);
+
+            expect((templatesRepo as any).getAllWithFilters).toHaveBeenCalledWith(expect.objectContaining({ category: 'cobranza', is_active: true }));
+        });
+
+        it('updates variables, category and locale', async () => {
+            allTemplates.push({ id_template: '11111111-1111-4111-8111-111111111111', name: 'A', is_active: true });
+            const useCase = new UpdateTemplateUseCase(contextFor({ id_user: 1, is_admin: true }), templatesRepo);
+
+            const result = await useCase.run({
+                data: { id_template: '11111111-1111-4111-8111-111111111111', variables: ['x'], category: 'legal', locale: 'es' },
+            } as never);
+
+            const updatePayload = (templatesRepo as any).update.mock.calls[0][1];
+            expect(JSON.parse(updatePayload.variables)).toEqual(['x']);
+            expect(updatePayload.category).toBe('legal');
+            expect(result.variables).toEqual(['x']);
+            expect(result.locale).toBe('es');
+        });
+    });
+
     describe('GetTemplatesUseCase', () => {
         it('forces active-only listing for a non-admin caller', async () => {
             allTemplates.push({ id_template: 'a', name: 'A', is_active: true });

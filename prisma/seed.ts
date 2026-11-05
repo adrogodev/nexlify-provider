@@ -13,6 +13,13 @@ const prisma = new PrismaClient({
 async function main() {
     colors.info('Seeding admin_user...', { dateShow: false });
 
+    // Idempotent: re-running the seed never duplicates the platform admin.
+    const existing = await prisma.admin_user.findFirst({ where: { username: _env.ADMIN_USER } });
+    if (existing) {
+        colors.info('admin_user already exists, skipping', { dateShow: false });
+        return;
+    }
+
     const passwordHasher = new PasswordHasherHelper();
 
     const hashPassword = await passwordHasher.hash(_env.ADMIN_PASSWORD);

@@ -6,6 +6,7 @@ import { SendEmailInput } from "./send-email.request-data";
 import { SendEmailResultDTO } from "src/core/application/dtos";
 import { EmailAttemptService } from "../services/email-attempt.service";
 import { EmailStateEnum } from "src/core/domain/enum";
+import { TemplateContentService } from "../services/template-content.service";
 
 export class SendEmailUseCase implements UseCase<SendEmailInput, SendEmailResultDTO> {
     constructor(
@@ -13,6 +14,7 @@ export class SendEmailUseCase implements UseCase<SendEmailInput, SendEmailResult
         private readonly _emailsRepository: IEmailsRepository,
         private readonly _attemptService: EmailAttemptService,
         private readonly _idGenerator: IIdGenerator,
+        private readonly _templateContentService: TemplateContentService,
     ) { }
 
     public run = async (args: UseCaseArgs<SendEmailInput>): Promise<SendEmailResultDTO> => {
@@ -34,14 +36,24 @@ export class SendEmailUseCase implements UseCase<SendEmailInput, SendEmailResult
             }
         }
 
+        const content = await this._templateContentService.resolve({
+            id_template: values.id_template,
+            variables: values.variables,
+            subject: values.subject,
+            html: values.html,
+            text: values.text,
+        });
+
         const persisted = await this._emailsRepository.create({
             short_code: this._idGenerator.generateShortCode(),
             id_client: null,
             from_email: values.from,
             to_email: Array.isArray(values.to) ? values.to.join(',') : values.to,
-            subject: values.subject,
-            body_html: values.html ?? null,
-            body_text: values.text ?? null,
+            subject: content.subject,
+            body_html: content.html,
+            body_text: content.text,
+            id_template: content.id_template,
+            template_variables: content.template_variables,
             state: EmailStateEnum.QUEUED,
             attempts: 0,
             next_retry_at: null,

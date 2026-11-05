@@ -86,6 +86,26 @@ describe('Email read + retry use cases', () => {
         expect(result.logs[0].id_log).toBe('1');
     });
 
+    it('GetEmailDetailUseCase exposes id_template and the parsed template_variables (S2)', async () => {
+        const templated = { ...email, id_template: '33333333-3333-4333-8333-333333333333', template_variables: '{"nombre":"Ana"}' } as unknown as Email;
+        const repo = { ...(emailsRepo as object), findByUuidOrShortCode: jest.fn(async () => templated) } as never;
+        const useCase = new GetEmailDetailUseCase(repo, logsRepo, attachmentsRepo);
+
+        const result = await useCase.run({ data: 'NX-AAAAAA1' } as never);
+
+        expect(result.id_template).toBe('33333333-3333-4333-8333-333333333333');
+        expect(result.template_variables).toEqual({ nombre: 'Ana' });
+    });
+
+    it('GetEmailDetailUseCase returns null template fields for emails sent without a template', async () => {
+        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo);
+
+        const result = await useCase.run({ data: 'NX-AAAAAA1' } as never);
+
+        expect(result.id_template).toBeNull();
+        expect(result.template_variables).toBeNull();
+    });
+
     it('GetEmailDetailUseCase throws NotFound for unknown identifiers', async () => {
         const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo);
         await expect(useCase.run({ data: 'desconocido' } as never)).rejects.toBeInstanceOf(NotFoundException);

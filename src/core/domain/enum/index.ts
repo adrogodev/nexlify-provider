@@ -4,3 +4,4 @@ export * from './email-event.enum';
 export * from './email-state.enum';
 export * from './log-level.enum';
 export * from './user-state.enum';
+export * from './suppression-reason.enum';

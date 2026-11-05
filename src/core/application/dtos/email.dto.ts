@@ -48,7 +48,11 @@ export interface EmailSendLogDTO {
 export interface EmailDetailDTO extends EmailDTO {
     logs: EmailSendLogDTO[],
     parent_email_uuid: string | null,
-    attachments: EmailAttachmentMetadataDTO[]
+    attachments: EmailAttachmentMetadataDTO[],
+    /** S2: template used to render the email, if any. */
+    id_template: string | null,
+    /** S2: variables used to render the template, if any. */
+    template_variables: Record<string, string> | null
 }
 
 export interface SendEmailResultDTO {

@@ -30,6 +30,9 @@ export class UpdateTemplateUseCase implements UseCase<UpdateTemplateInput, Templ
             subject: args.data.subject,
             template: args.data.template,
             is_active: args.data.is_active,
+            variables: TemplateMapper.serializeVariables(args.data.variables),
+            category: args.data.category,
+            locale: args.data.locale,
         };
 
         const updated = await this._templatesRepository.update(args.data.id_template, patch);

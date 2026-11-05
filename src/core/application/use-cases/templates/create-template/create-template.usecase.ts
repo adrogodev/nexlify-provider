@@ -27,6 +27,9 @@ export class CreateTemplateUseCase implements UseCase<CreateTemplateInput, Templ
             subject: args.data.subject,
             template: args.data.template,
             is_active: args.data.is_active ?? true,
+            variables: TemplateMapper.serializeVariables(args.data.variables),
+            category: args.data.category,
+            locale: args.data.locale,
         });
 
         return TemplateMapper.mapTemplate(created);
