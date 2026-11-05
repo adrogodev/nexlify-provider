@@ -36,7 +36,7 @@ All under the global `api` prefix. "Dual auth" = existing `EmailAuthGuard` (JWT 
 | ID | Specs | Route | Status | Commit |
 | --- | --- | --- | --- | --- |
 | T1 | S1 (+ schema for S2–S9) | inline | in progress | |
-| T2 | S2, S3, S4, S5 (send pipeline) | delegated writer A (parallel, worktree) | pending | |
+| T2 | S2, S3, S4, S5 (send pipeline) | delegated writer A (parallel, worktree) | done (branch `wip/send-pipeline`) | 63f07e3 (code) + docs commit |
 | T3 | S6, S7, S8, S9 (evidence + intelligence) | delegated writer B (parallel, worktree) | pending | |
 | T4 | S10 merge of docs fragments | inline | pending | |
 | T5 | S11 | delegated writer C (front repo, parallel) | pending | |
