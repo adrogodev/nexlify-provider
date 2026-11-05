@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { DiffuseEmailUseCase } from './diffuse-email.usecase';
 import { ActionNotAllowedException } from 'src/core/domain/exceptions';
 import { EmailStateEnum } from 'src/core/domain/enum';
+import { TemplateContentService } from '../services/template-content.service';
 
 describe('DiffuseEmailUseCase', () => {
     const config = {
@@ -28,7 +29,10 @@ describe('DiffuseEmailUseCase', () => {
         } as never;
         const configRepo = { findConfiguration: jest.fn(async () => cfg) } as never;
         const idGen = { generateShortCode: jest.fn(() => shortCode), generateUuid: jest.fn(() => 'code-never-generates-uuid') } as never;
-        const useCase = new DiffuseEmailUseCase(configRepo, emailsRepo, idGen);
+        const templatesRepo = {
+            getByIdAsync: jest.fn(async () => ({ id_template: '33333333-3333-4333-8333-333333333333', subject: 'Aviso {{mes}}', template: '<p>{{mes}}</p>', is_active: true })),
+        } as never;
+        const useCase = new DiffuseEmailUseCase(configRepo, emailsRepo, idGen, new TemplateContentService(templatesRepo));
         return {
             useCase,
             emailsRepo: emailsRepo as unknown as { create: jest.Mock; countSentOn: jest.Mock },
@@ -42,6 +46,22 @@ describe('DiffuseEmailUseCase', () => {
         to,
         subject: 'Difusion masiva',
         html: '<p>hola</p>',
+    });
+
+    it('renders an optional template once and stores id_template on every queued row', async () => {
+        const { useCase, emailsRepo } = build();
+
+        await useCase.run({
+            data: { to: ['a@test.local', 'b@test.local'], id_template: '33333333-3333-4333-8333-333333333333', variables: { mes: 'Mayo' } } as never,
+        });
+
+        expect(emailsRepo.create).toHaveBeenCalledTimes(2);
+        for (const [row] of emailsRepo.create.mock.calls) {
+            expect(row.subject).toBe('Aviso Mayo');
+            expect(row.body_html).toBe('<p>Mayo</p>');
+            expect(row.id_template).toBe('33333333-3333-4333-8333-333333333333');
+            expect(JSON.parse(row.template_variables)).toEqual({ mes: 'Mayo' });
+        }
     });
 
     it('creates one QUEUED emails row per recipient with short code and DB-side uuid (code does not send email_uuid)', async () => {

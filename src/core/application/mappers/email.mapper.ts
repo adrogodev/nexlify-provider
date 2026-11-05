@@ -49,7 +49,22 @@ export class EmailMapper {
                 filename: attachment.filename,
                 content_type: attachment.content_type,
                 size_bytes: attachment.size_bytes
-            }))
+            })),
+            id_template: email.id_template ?? null,
+            template_variables: EmailMapper.parseTemplateVariables(email.template_variables)
         };
+    }
+
+    /** `emails.template_variables` holds a JSON object; anything else reads as null. */
+    public static parseTemplateVariables(raw: Nullable<string> | undefined): Record<string, string> | null {
+        if (!raw) return null;
+        try {
+            const parsed: unknown = JSON.parse(raw);
+            return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+                ? parsed as Record<string, string>
+                : null;
+        } catch {
+            return null;
+        }
     }
 }

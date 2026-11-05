@@ -3,6 +3,7 @@ import type { INexlifyConfigurationRepository, ISmtpServerRepository } from "src
 import type { IMailerService } from "src/core/application/contracts/services";
 import { Email } from "src/core/domain/entities/email.entity";
 import { EmailLogLevelEnum, EmailStateEnum } from "src/core/domain/enum";
+import type { DeliverabilityService } from "./deliverability.service";
 
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_INTERVAL_SECONDS = 60;
@@ -28,12 +29,22 @@ export class EmailAttemptService {
         private readonly _mailerService: IMailerService,
         private readonly _webhookEndpointsRepository: IWebhookEndpointsRepository,
         private readonly _webhookDeliveriesRepository: IWebhookDeliveriesRepository,
+        /** S4/S5 send policies (suppression gate, unsubscribe headers, DKIM). */
+        private readonly _deliverability?: DeliverabilityService,
     ) { }
 
     public attempt = async (emailId: bigint): Promise<Email> => {
         const email = await this._emailsRepository.getByIdAsync(emailId);
         if (email === null) {
             throw new Error('El correo solicitado no existe');
+        }
+
+        // S5: a suppressed recipient is never handed to SMTP and never retried.
+        if (this._deliverability !== undefined) {
+            const blocking = await this._deliverability.findBlockingSuppression(email);
+            if (blocking !== null) {
+                return await this.#markSuppressed(email, blocking.email, blocking.reason);
+            }
         }
 
         const configuration = await this._nexlifyConfigurationRepository.findConfiguration();
@@ -52,6 +63,10 @@ export class EmailAttemptService {
         const maxRetries = configuration.max_retries ?? DEFAULT_MAX_RETRIES;
         const intervalSeconds = configuration.retry_interval_seconds ?? DEFAULT_RETRY_INTERVAL_SECONDS;
 
+        const sendOptions = this._deliverability !== undefined
+            ? await this._deliverability.buildSendOptions(email)
+            : {};
+
         const mailerResult = await this._mailerService.send({
             transporter: {
                 host: smtpServer.host ?? '',
@@ -66,6 +81,8 @@ export class EmailAttemptService {
                 subject: email.subject,
                 html: email.body_html ?? undefined,
                 text: email.body_text ?? undefined,
+                ...(sendOptions.headers !== undefined ? { headers: sendOptions.headers } : {}),
+                ...(sendOptions.dkim !== undefined ? { dkim: sendOptions.dkim } : {}),
             }
         });
 
@@ -120,6 +137,22 @@ export class EmailAttemptService {
 
         return finalEmail;
     };
+
+    async #markSuppressed(email: Email, recipient: string, reason: string): Promise<Email> {
+        await this._emailSendLogsRepository.create({
+            id_email: email.id_email,
+            attempt: (email.attempts ?? 0) + 1,
+            level: EmailLogLevelEnum.ERROR,
+            message: `No enviado: el destinatario ${recipient} esta en la lista de supresion (${reason})`,
+            smtp_host: null,
+        });
+
+        email.state = EmailStateEnum.SUPPRESSED;
+        email.next_retry_at = null;
+
+        const updatedEmail = await this._emailsRepository.update(email.id_email, email);
+        return updatedEmail ?? email;
+    }
 
     async #enqueueDeliveryStatusWebhooks(finalEmail: Email, state: EmailStateEnum): Promise<void> {
         // Delivery-status webhooks are queued, never sent synchronously: every

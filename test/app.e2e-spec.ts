@@ -5,9 +5,16 @@ import type { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 import { GlobalExceptionFilter } from '../src/infrastructure/filters/exception.filter';
+import { AppEnvs } from '../src/infrastructure/environments/app-env.config';
+import { UnsubscribeTokenService } from '../src/infrastructure/services/unsubscribe-token.service';
 
 describe('API (e2e)', () => {
     let app: INestApplication<App>;
+    const suppressions = {
+        findFirst: jest.fn(async () => null),
+        findMany: jest.fn(async () => []),
+        create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id_suppression: 1n, suppression_uuid: 'u', ...data })),
+    };
 
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -29,6 +36,8 @@ describe('API (e2e)', () => {
                 id_types: { findMany: jest.fn(async () => []) },
                 webhook_endpoints: {},
                 webhook_deliveries: {},
+                sending_domains: {},
+                suppressions,
             })
             .compile();
 
@@ -87,6 +96,47 @@ describe('API (e2e)', () => {
             .put('/api/webhooks/11111111-1111-4111-8111-111111111111')
             .send({ url: 'https://hooks.local/receiver' })
             .expect(403);
+    });
+
+    it('GET /api/domains rejects unauthenticated requests (AuthGuard)', () => {
+        return request(app.getHttpServer()).get('/api/domains').expect(403);
+    });
+
+    it('GET /api/suppressions rejects unauthenticated requests (AuthGuard)', () => {
+        return request(app.getHttpServer()).get('/api/suppressions').expect(403);
+    });
+
+    it('POST /api/email/events/bounce rejects a missing HMAC signature', () => {
+        return request(app.getHttpServer())
+            .post('/api/email/events/bounce')
+            .send({ recipient: 'a@test.local', type: 'HARD_BOUNCE' })
+            .expect(401);
+    });
+
+    it('GET /api/unsubscribe/:token renders an invalid-link page for a forged token (public, no auth)', async () => {
+        const response = await request(app.getHttpServer()).get('/api/unsubscribe/forged.token').expect(400);
+        expect(response.headers['content-type']).toContain('text/html');
+        expect(response.text).toContain('Enlace invalido');
+    });
+
+    it('GET + POST /api/unsubscribe/:token confirm page and one-click suppression', async () => {
+        const token = new UnsubscribeTokenService(AppEnvs.ENCRYPT_KEY, AppEnvs.PUBLIC_API_URL).sign({ email: 'dest@test.local', id_client: 7n });
+
+        const page = await request(app.getHttpServer()).get(`/api/unsubscribe/${token}`).expect(200);
+        expect(page.text).toContain('dest@test.local');
+        expect(page.text).toContain('<form method="post">');
+        expect(page.headers['content-security-policy']).toContain("form-action 'self'");
+        expect(suppressions.create).not.toHaveBeenCalled();
+
+        const done = await request(app.getHttpServer())
+            .post(`/api/unsubscribe/${token}`)
+            .type('form')
+            .send('List-Unsubscribe=One-Click')
+            .expect(200);
+        expect(done.text).toContain('Suscripcion cancelada');
+        expect(suppressions.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ id_client: 7n, email: 'dest@test.local', reason: 'UNSUBSCRIBE' }),
+        });
     });
 
     afterAll(async () => {

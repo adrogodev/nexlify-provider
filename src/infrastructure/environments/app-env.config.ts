@@ -2,9 +2,10 @@ import { type ApplicationEnvs, NodeEnvEnum } from "./environment.config"
 import * as env from "env-var"
 import "dotenv/config"
 
+const PORT = env.get("PORT").required().asPortNumber();
 
 export const AppEnvs: Readonly<ApplicationEnvs> = Object.freeze<ApplicationEnvs>({
-    PORT: env.get("PORT").required().asPortNumber(),
+    PORT,
     NODE_ENV: env.get("NODE_ENV").default("development").asEnum<NodeEnvEnum>([
         NodeEnvEnum.DEVELOPMENT,
         NodeEnvEnum.STAGING,
@@ -17,4 +18,5 @@ export const AppEnvs: Readonly<ApplicationEnvs> = Object.freeze<ApplicationEnvs>
     JWT_EXPIRATION_TIME: env.get("JWT_EXPIRATION_TIME").required().asInt(),
     ENCRYPT_KEY: env.get("ENCRYPT_KEY").required().asString(),
     INBOUND_WEBHOOK_SECRET: env.get("INBOUND_WEBHOOK_SECRET").required().asString(),
+    PUBLIC_API_URL: env.get("PUBLIC_API_URL").default(`http://localhost:${PORT}`).asUrlString(),
 })

@@ -39,6 +39,7 @@ describe('EmailAttemptService', () => {
         existing,
         endpoints = [],
         webhookDeliveriesFail = false,
+        deliverability,
     }: {
         config?: unknown;
         server?: unknown;
@@ -46,6 +47,7 @@ describe('EmailAttemptService', () => {
         existing?: Partial<Email>;
         endpoints?: Array<Record<string, unknown>>;
         webhookDeliveriesFail?: boolean;
+        deliverability?: unknown;
     }) => {
         const email = { ...baseEmail, ...existing };
         const configRepo = { findConfiguration: jest.fn(async () => (cfg !== undefined ? cfg : config)) } as never;
@@ -63,7 +65,7 @@ describe('EmailAttemptService', () => {
                 return row;
             }),
         } as never;
-        const service = new EmailAttemptService(configRepo, smtpRepo, emailsRepo as never, logRepo, mailer, webhookEndpointsRepo as never, webhookDeliveriesRepo as never);
+        const service = new EmailAttemptService(configRepo, smtpRepo, emailsRepo as never, logRepo, mailer, webhookEndpointsRepo as never, webhookDeliveriesRepo as never, deliverability as never);
         return {
             service,
             emailsRepo: emailsRepo as unknown as { update: jest.Mock },
@@ -292,6 +294,68 @@ describe('EmailAttemptService', () => {
             const updatePayload = emailsRepo.update.mock.calls[0][1] as Record<string, unknown>;
             expect(updatePayload['message_id']).toBe('<prev@server.local>');
             expect(result.message_id).toBe('<prev@server.local>');
+        });
+    });
+    describe('deliverability (S4/S5)', () => {
+        const deliverabilityFor = (blocking: unknown, options: unknown = {}) => ({
+            findBlockingSuppression: jest.fn(async () => blocking),
+            buildSendOptions: jest.fn(async () => options),
+        });
+
+        it('marks a suppressed recipient SUPPRESSED with an ERROR log and never calls SMTP nor schedules a retry', async () => {
+            const deliverability = deliverabilityFor({ email: 'dest@test.local', reason: 'HARD_BOUNCE' });
+            const { service, email, mailer, logRepo, emailsRepo, webhookDeliveriesRepo } = build({ deliverability, endpoints: [{ id_endpoint: 1n }], existing: { id_client: 7n } as never });
+
+            const result = await service.attempt(email.id_email);
+
+            expect(mailer.send).not.toHaveBeenCalled();
+            expect(result.state).toBe(EmailStateEnum.SUPPRESSED);
+            expect(result.next_retry_at).toBeNull();
+            expect(result.attempts).toBe(0);
+            expect(emailsRepo.update).toHaveBeenCalledWith(email.id_email, expect.objectContaining({ state: EmailStateEnum.SUPPRESSED, next_retry_at: null }));
+            expect(logRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+                id_email: email.id_email,
+                level: EmailLogLevelEnum.ERROR,
+                message: expect.stringContaining('dest@test.local'),
+            }));
+            expect(logRepo.create.mock.calls[0][0].message).toContain('HARD_BOUNCE');
+            expect(webhookDeliveriesRepo.create).not.toHaveBeenCalled();
+        });
+
+        it('keeps a suppressed email SUPPRESSED on a later retry tick (no SMTP call)', async () => {
+            const deliverability = deliverabilityFor({ email: 'dest@test.local', reason: 'UNSUBSCRIBE' });
+            const { service, email, mailer } = build({ deliverability, existing: { state: EmailStateEnum.RETRYING, attempts: 2 } });
+
+            const result = await service.attempt(email.id_email);
+
+            expect(mailer.send).not.toHaveBeenCalled();
+            expect(result.state).toBe(EmailStateEnum.SUPPRESSED);
+            expect(result.attempts).toBe(2);
+        });
+
+        it('passes unsubscribe headers and DKIM options to the mailer when not suppressed', async () => {
+            const options = {
+                headers: { 'List-Unsubscribe': '<https://x/api/unsubscribe/t>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+                dkim: { domainName: 'acme.co', keySelector: 'nexlify', privateKey: 'pem' },
+            };
+            const { service, email, mailer } = build({ deliverability: deliverabilityFor(null, options) });
+
+            const result = await service.attempt(email.id_email);
+
+            expect(result.state).toBe(EmailStateEnum.SENT);
+            const payload = mailer.send.mock.calls[0][0];
+            expect(payload.email.headers).toEqual(options.headers);
+            expect(payload.email.dkim).toEqual(options.dkim);
+            expect(payload.email.to).toBe('dest@test.local');
+        });
+
+        it('sends the original payload without headers/dkim when no deliverability service is wired (regression)', async () => {
+            const { service, email, mailer } = build({});
+
+            await service.attempt(email.id_email);
+
+            const payload = mailer.send.mock.calls[0][0];
+            expect(payload.email).toEqual({ from: 'sender@nexlify.local', to: 'dest@test.local', subject: 'Hola', html: undefined, text: 'texto' });
         });
     });
 });

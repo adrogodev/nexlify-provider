@@ -1,5 +1,6 @@
 import { SendEmailUseCase } from './send-email.usecase';
 import { SendEmailInput } from './send-email.request-data';
+import { TemplateContentService } from '../services/template-content.service';
 
 describe('SendEmailUseCase', () => {
     const config = {
@@ -17,6 +18,13 @@ describe('SendEmailUseCase', () => {
         attempts: 1,
     };
 
+    const template = {
+        id_template: '22222222-2222-4222-8222-222222222222',
+        subject: 'Factura {{numero}}',
+        template: '<p>Hola {{nombre}}</p>',
+        is_active: true,
+    };
+
     const build = (overrides?: { config?: unknown; sentToday?: number; attemptResult?: unknown }) => {
         const cfg = overrides?.config !== undefined ? overrides.config : config;
         const emailsRepo = {
@@ -26,7 +34,8 @@ describe('SendEmailUseCase', () => {
         const configRepo = { findConfiguration: jest.fn(async () => cfg) } as never;
         const attempt = { attempt: jest.fn(async () => overrides?.attemptResult ?? { state: 'SENT', attempts: 1 }) } as never;
         const idGen = { generateUuid: () => createdEmail.email_uuid, generateShortCode: () => createdEmail.short_code } as never;
-        const useCase = new SendEmailUseCase(configRepo, emailsRepo, attempt, idGen);
+        const templatesRepo = { getByIdAsync: jest.fn(async () => template) } as never;
+        const useCase = new SendEmailUseCase(configRepo, emailsRepo, attempt, idGen, new TemplateContentService(templatesRepo));
         return { useCase, emailsRepo: emailsRepo as unknown as { create: jest.Mock; countSentOn: jest.Mock }, attempt: (attempt as unknown as { attempt: jest.Mock }).attempt };
     };
 
@@ -65,6 +74,47 @@ describe('SendEmailUseCase', () => {
             state: 'SENT',
             attempts: 1,
         });
+    });
+
+    it('persists no template reference when sent without a template (regression)', async () => {
+        const { useCase, emailsRepo } = build();
+
+        await useCase.run({ data: { ...input, html: '<b>{{x}}</b>' } as SendEmailInput });
+
+        const created = emailsRepo.create.mock.calls[0][0];
+        expect(created.body_html).toBe('<b>{{x}}</b>');
+        expect(created.body_text).toBe('mensaje');
+        expect(created.id_template).toBeNull();
+        expect(created.template_variables).toBeNull();
+    });
+
+    it('renders the template with its variables and stores id_template + template_variables', async () => {
+        const { useCase, emailsRepo, attempt } = build();
+
+        await useCase.run({
+            data: {
+                from: 'origen@test.local',
+                to: 'dest@test.local',
+                id_template: template.id_template,
+                variables: { numero: 'F-7', nombre: '<Ana>' },
+            } as never as SendEmailInput,
+        });
+
+        const created = emailsRepo.create.mock.calls[0][0];
+        expect(created.subject).toBe('Factura F-7');
+        expect(created.body_html).toBe('<p>Hola &lt;Ana&gt;</p>');
+        expect(created.id_template).toBe(template.id_template);
+        expect(JSON.parse(created.template_variables)).toEqual({ numero: 'F-7', nombre: '<Ana>' });
+        expect(attempt).toHaveBeenCalledWith(100n);
+    });
+
+    it('rejects missing template variables before persisting anything', async () => {
+        const { useCase, emailsRepo } = build();
+
+        await expect(useCase.run({
+            data: { from: 'o@test.local', to: 'd@test.local', id_template: template.id_template, variables: { numero: '1' } } as never as SendEmailInput,
+        })).rejects.toThrow('Faltan variables de plantilla: nombre');
+        expect(emailsRepo.create).not.toHaveBeenCalled();
     });
 
     it('throws when no configuration exists', async () => {

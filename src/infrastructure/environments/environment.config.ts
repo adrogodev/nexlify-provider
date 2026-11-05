@@ -15,4 +15,6 @@ export interface ApplicationEnvs {
     ENCRYPT_KEY: string;
     /** Shared secret of the provider-agnostic inbound webhook (HMAC-SHA256 over the raw body). */
     INBOUND_WEBHOOK_SECRET: string;
+    /** Public base URL of this API (unsubscribe links). Optional, defaults to http://localhost:${PORT}. */
+    PUBLIC_API_URL: string;
 }

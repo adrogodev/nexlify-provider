@@ -128,4 +128,33 @@ describe('MailerService', () => {
         expect(result.ok).toBe(false);
         expect(result.messageId).toBeUndefined();
     });
+    it('forwards custom headers and DKIM options to nodemailer (S4/S5)', async () => {
+        const sendMail = jest.fn().mockResolvedValue({});
+        createTransportMock.mockImplementation(() => ({ verify: jest.fn().mockResolvedValue(true), sendMail }));
+        const headers = { 'List-Unsubscribe': '<https://x/api/unsubscribe/t>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' };
+        const dkim = { domainName: 'acme.co', keySelector: 'nexlify', privateKey: 'pem' };
+
+        await service.send({
+            transporter: { host: 'smtp.test.local', port: 587, secure: false, user: 'u', password: 'p' },
+            email: { from: 'from@acme.co', to: 'to@test.local', subject: 's', text: 't', headers, dkim },
+        });
+
+        expect(sendMail.mock.calls[0][0].headers).toEqual(headers);
+        expect(sendMail.mock.calls[0][0].dkim).toEqual(dkim);
+    });
+
+    it('sends no headers/dkim keys when none are given (regression)', async () => {
+        const sendMail = jest.fn().mockResolvedValue({});
+        createTransportMock.mockImplementation(() => ({ verify: jest.fn().mockResolvedValue(true), sendMail }));
+
+        await service.send({
+            transporter: { host: 'smtp.test.local', port: 587, secure: false, user: 'u', password: 'p' },
+            email: { from: 'from@test.local', to: ['a@test.local', 'b@test.local'], subject: 's', text: 't' },
+        });
+
+        const message = sendMail.mock.calls[0][0];
+        expect(message.to).toBe('a@test.local,b@test.local');
+        expect('headers' in message).toBe(false);
+        expect('dkim' in message).toBe(false);
+    });
 });

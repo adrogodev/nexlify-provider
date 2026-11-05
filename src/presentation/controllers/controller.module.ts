@@ -20,7 +20,9 @@ import {
     NEXLIFY_CONFIGURATION_REPOSITORY,
     NEXLIFY_KEYS_LOGS_REPOSITORY,
     NEXLIFY_KEYS_REPOSITORY,
+    SENDING_DOMAINS_REPOSITORY,
     SMTP_SERVER_REPOSITORY,
+    SUPPRESSIONS_REPOSITORY,
     WEBHOOK_DELIVERIES_REPOSITORY,
     WEBHOOK_ENDPOINTS_REPOSITORY,
 } from 'src/core/application/contracts/persistence';
@@ -29,8 +31,11 @@ import {
     USERS_REPOSITORY,
 } from 'src/core/application/contracts/persistence';
 import {
+    DKIM_KEY_GENERATOR,
+    DNS_RESOLVER,
     HTTP_DELIVERY_SERVICE,
     MAILER_SERVICE,
+    UNSUBSCRIBE_TOKEN_SERVICE,
 } from 'src/core/application/contracts/services';
 import { TEMPLATE_SERVICE } from 'src/core/application/contracts/services/template.service';
 import {
@@ -60,7 +65,9 @@ import { InboundEmailUseCase } from 'src/core/application/use-cases/email/inboun
 import { RetryDueEmailsUseCase } from 'src/core/application/use-cases/email/retry-due/retry-due-emails.usecase';
 import { RetryEmailUseCase } from 'src/core/application/use-cases/email/retry-email/retry-email.usecase';
 import { SendEmailUseCase } from 'src/core/application/use-cases/email/send-email/send-email.usecase';
+import { DeliverabilityService } from 'src/core/application/use-cases/email/services/deliverability.service';
 import { EmailAttemptService } from 'src/core/application/use-cases/email/services/email-attempt.service';
+import { TemplateContentService } from 'src/core/application/use-cases/email/services/template-content.service';
 import { IdTypesUseCase } from 'src/core/application/use-cases/master';
 import {
     AddNexlifyConfigurationUseCase,
@@ -72,7 +79,22 @@ import {
     ListMyNexlifyKeysUseCase,
     RevokeNexlifyKeyUseCase,
 } from 'src/core/application/use-cases/nexlify-keys';
+import {
+    DeleteSendingDomainUseCase,
+    ListSendingDomainsUseCase,
+    RegisterSendingDomainUseCase,
+    SpfPolicyService,
+    VerifySendingDomainUseCase,
+} from 'src/core/application/use-cases/sending-domains';
 import { AddSmtpServerUseCase } from 'src/core/application/use-cases/smtp-server';
+import {
+    AddSuppressionUseCase,
+    ListSuppressionsUseCase,
+    ProcessBounceUseCase,
+    RemoveSuppressionUseCase,
+    SuppressionService,
+    UnsubscribeUseCase,
+} from 'src/core/application/use-cases/suppressions';
 import {
     CreateTemplateUseCase,
     GetTemplatesUseCase,
@@ -106,13 +128,17 @@ import { WebhookDeliveryScheduler } from 'src/infrastructure/services/webhook-de
 import { AdminUserController } from './admin-user.controller';
 import { ClientContoller } from './client.controller';
 import { EmailEventSubscriptionsController } from './email-event-subscriptions.controller';
+import { EmailBounceController } from './email-bounce.controller';
 import { EmailController } from './email.controller';
 import { InboundEmailController } from './inbound-email.controller';
 import { MasterController } from './master.controller';
 import { NexlifyConfigurationController } from './nexlify-configuration.controller';
 import { NexlifyKeysController } from './nexlify-keys.controller';
+import { SendingDomainsController } from './sending-domains.controller';
 import { SmtpServerController } from './smtp-server.controller';
+import { SuppressionsController } from './suppressions.controller';
 import { TemplatesController } from './templates.controller';
+import { UnsubscribeController } from './unsubscribe.controller';
 import { UsersController } from './users.controller';
 import { VerifyController } from './verify.controller';
 import { WebhooksController } from './webhooks.controller';
@@ -138,6 +164,11 @@ import { WebhooksController } from './webhooks.controller';
         TemplatesController,
         WebhooksController,
         EmailEventSubscriptionsController,
+        // S4/S5 (send pipeline)
+        SendingDomainsController,
+        SuppressionsController,
+        EmailBounceController,
+        UnsubscribeController,
     ],
     providers: [
         AuthGuard,
@@ -247,6 +278,7 @@ import { WebhooksController } from './webhooks.controller';
                 service,
                 webhookEndpointsRepo,
                 webhookDeliveriesRepo,
+                deliverability,
             ) =>
                 new EmailAttemptService(
                     configRepo,
@@ -256,6 +288,7 @@ import { WebhooksController } from './webhooks.controller';
                     service,
                     webhookEndpointsRepo,
                     webhookDeliveriesRepo,
+                    deliverability,
                 ),
             inject: [
                 NEXLIFY_CONFIGURATION_REPOSITORY,
@@ -265,22 +298,31 @@ import { WebhooksController } from './webhooks.controller';
                 MAILER_SERVICE,
                 WEBHOOK_ENDPOINTS_REPOSITORY,
                 WEBHOOK_DELIVERIES_REPOSITORY,
+                DeliverabilityService,
             ],
         },
         {
             provide: SendEmailUseCase,
-            useFactory: (configRepo, emailsRepo, attemptService, idGen) =>
+            useFactory: (
+                configRepo,
+                emailsRepo,
+                attemptService,
+                idGen,
+                templateContent,
+            ) =>
                 new SendEmailUseCase(
                     configRepo,
                     emailsRepo,
                     attemptService,
                     idGen,
+                    templateContent,
                 ),
             inject: [
                 NEXLIFY_CONFIGURATION_REPOSITORY,
                 EMAILS_REPOSITORY,
                 EmailAttemptService,
                 ID_GENERATOR,
+                TemplateContentService,
             ],
         },
         {
@@ -344,12 +386,18 @@ import { WebhooksController } from './webhooks.controller';
         },
         {
             provide: DiffuseEmailUseCase,
-            useFactory: (configRepo, emailsRepo, idGen) =>
-                new DiffuseEmailUseCase(configRepo, emailsRepo, idGen),
+            useFactory: (configRepo, emailsRepo, idGen, templateContent) =>
+                new DiffuseEmailUseCase(
+                    configRepo,
+                    emailsRepo,
+                    idGen,
+                    templateContent,
+                ),
             inject: [
                 NEXLIFY_CONFIGURATION_REPOSITORY,
                 EMAILS_REPOSITORY,
                 ID_GENERATOR,
+                TemplateContentService,
             ],
         },
         {
@@ -647,6 +695,154 @@ import { WebhooksController } from './webhooks.controller';
                 new UpdateSubscriptionUseCase(context, subscriptionsRepo),
             inject: [REQUEST_CONTEXT, EMAIL_EVENT_SUBSCRIPTIONS_REPOSITORY],
         },
+        // ---- S2/S4/S5 (send pipeline) ----
+        {
+            provide: TemplateContentService,
+            useFactory: (templatesRepo) =>
+                new TemplateContentService(templatesRepo),
+            inject: [TEMPLATES_REPOSITORY],
+        },
+        {
+            provide: SuppressionService,
+            useFactory: (suppressionsRepo) =>
+                new SuppressionService(suppressionsRepo),
+            inject: [SUPPRESSIONS_REPOSITORY],
+        },
+        {
+            provide: DeliverabilityService,
+            useFactory: (
+                suppressionService,
+                domainsRepo,
+                encrypter,
+                appConfig,
+                unsubscribeTokens,
+            ) =>
+                new DeliverabilityService(
+                    suppressionService,
+                    domainsRepo,
+                    encrypter,
+                    appConfig,
+                    unsubscribeTokens,
+                ),
+            inject: [
+                SuppressionService,
+                SENDING_DOMAINS_REPOSITORY,
+                ENCRYPTER,
+                APP_CONFIG,
+                UNSUBSCRIBE_TOKEN_SERVICE,
+            ],
+        },
+        {
+            provide: SpfPolicyService,
+            useFactory: (configRepo, smtpRepo) =>
+                new SpfPolicyService(configRepo, smtpRepo),
+            inject: [NEXLIFY_CONFIGURATION_REPOSITORY, SMTP_SERVER_REPOSITORY],
+        },
+        {
+            provide: RegisterSendingDomainUseCase,
+            useFactory: (
+                context,
+                domainsRepo,
+                keyGen,
+                encrypter,
+                appConfig,
+                spf,
+            ) =>
+                new RegisterSendingDomainUseCase(
+                    context,
+                    domainsRepo,
+                    keyGen,
+                    encrypter,
+                    appConfig,
+                    spf,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                SENDING_DOMAINS_REPOSITORY,
+                DKIM_KEY_GENERATOR,
+                ENCRYPTER,
+                APP_CONFIG,
+                SpfPolicyService,
+            ],
+        },
+        {
+            provide: ListSendingDomainsUseCase,
+            useFactory: (context, domainsRepo, spf) =>
+                new ListSendingDomainsUseCase(context, domainsRepo, spf),
+            inject: [
+                REQUEST_CONTEXT,
+                SENDING_DOMAINS_REPOSITORY,
+                SpfPolicyService,
+            ],
+        },
+        {
+            provide: VerifySendingDomainUseCase,
+            useFactory: (context, domainsRepo, dns, spf) =>
+                new VerifySendingDomainUseCase(context, domainsRepo, dns, spf),
+            inject: [
+                REQUEST_CONTEXT,
+                SENDING_DOMAINS_REPOSITORY,
+                DNS_RESOLVER,
+                SpfPolicyService,
+            ],
+        },
+        {
+            provide: DeleteSendingDomainUseCase,
+            useFactory: (context, domainsRepo) =>
+                new DeleteSendingDomainUseCase(context, domainsRepo),
+            inject: [REQUEST_CONTEXT, SENDING_DOMAINS_REPOSITORY],
+        },
+        {
+            provide: ListSuppressionsUseCase,
+            useFactory: (context, suppressionsRepo, emailsRepo) =>
+                new ListSuppressionsUseCase(
+                    context,
+                    suppressionsRepo,
+                    emailsRepo,
+                ),
+            inject: [
+                REQUEST_CONTEXT,
+                SUPPRESSIONS_REPOSITORY,
+                EMAILS_REPOSITORY,
+            ],
+        },
+        {
+            provide: AddSuppressionUseCase,
+            useFactory: (context, suppressionService, emailsRepo) =>
+                new AddSuppressionUseCase(
+                    context,
+                    suppressionService,
+                    emailsRepo,
+                ),
+            inject: [REQUEST_CONTEXT, SuppressionService, EMAILS_REPOSITORY],
+        },
+        {
+            provide: RemoveSuppressionUseCase,
+            useFactory: (context, suppressionsRepo) =>
+                new RemoveSuppressionUseCase(context, suppressionsRepo),
+            inject: [REQUEST_CONTEXT, SUPPRESSIONS_REPOSITORY],
+        },
+        {
+            provide: ProcessBounceUseCase,
+            useFactory: (emailsRepo, logsRepo, suppressionService) =>
+                new ProcessBounceUseCase(
+                    emailsRepo,
+                    logsRepo,
+                    suppressionService,
+                ),
+            inject: [
+                EMAILS_REPOSITORY,
+                EMAIL_SEND_LOGS_REPOSITORY,
+                SuppressionService,
+            ],
+        },
+        {
+            provide: UnsubscribeUseCase,
+            useFactory: (unsubscribeTokens, suppressionService) =>
+                new UnsubscribeUseCase(unsubscribeTokens, suppressionService),
+            inject: [UNSUBSCRIBE_TOKEN_SERVICE, SuppressionService],
+        },
+        // ---- end S2/S4/S5 ----
         {
             provide: WebhookDeliveryScheduler,
             useFactory: (

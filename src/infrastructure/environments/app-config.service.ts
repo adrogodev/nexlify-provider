@@ -9,4 +9,5 @@ export class AppConfigService implements IAppConfig {
     public readonly ENCRYPT_KEY = _env.ENCRYPT_KEY;
     public readonly PLATFORM_URL = _env.PLATFORM_URL;
     public readonly INBOUND_WEBHOOK_SECRET = _env.INBOUND_WEBHOOK_SECRET;
+    public readonly PUBLIC_API_URL = _env.PUBLIC_API_URL;
 }

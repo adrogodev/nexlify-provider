@@ -8,6 +8,13 @@ export interface TransporterData {
     password: string
 }
 
+/** Per-message DKIM signing options (nodemailer `dkim`). */
+export interface DkimSigningOptions {
+    domainName: string;
+    keySelector: string;
+    privateKey: string;
+}
+
 export interface EmailPayload {
     from: string;
     to: string | string[];
@@ -15,4 +22,8 @@ export interface EmailPayload {
     html?: string;
     text?: string;
     attachments?: EmailAttachment[];
+    /** Extra message headers (e.g. List-Unsubscribe). */
+    headers?: Record<string, string>;
+    /** DKIM signature for a verified sending domain. */
+    dkim?: DkimSigningOptions;
 }
