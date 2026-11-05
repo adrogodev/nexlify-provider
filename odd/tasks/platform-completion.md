@@ -35,12 +35,12 @@ All under the global `api` prefix. "Dual auth" = existing `EmailAuthGuard` (JWT 
 
 | ID | Specs | Route | Status | Commit |
 | --- | --- | --- | --- | --- |
-| T1 | S1 (+ schema for S2–S9) | inline | in progress | |
-| T2 | S2, S3, S4, S5 (send pipeline) | delegated writer A (parallel, worktree) | pending | |
-| T3 | S6, S7, S8, S9 (evidence + intelligence) | delegated writer B (parallel, worktree) | pending | |
+| T1 | S1 (+ schema for S2–S9) | inline | done | 9780625 |
+| T2 | S2, S3, S4, S5 (send pipeline) | delegated writer A (parallel, worktree) | running | |
+| T3 | S6, S7, S8, S9 (evidence + intelligence) | delegated writer B (parallel, worktree) | running | |
 | T4 | S10 merge of docs fragments | inline | pending | |
-| T5 | S11 | delegated writer C (front repo, parallel) | pending | |
-| T6 | S12 | inline | pending | |
+| T5 | S11 | delegated writer C (front repo, parallel) | running | |
+| T6 | S12 | inline | done (image build pending) | 4bdd300, 16103f7, front aee7aa8 |
 | T7 | S13 | inline | pending | |
 
 Route evidence: T2/T3/T5 are independent units of several hundred lines each with disjoint surfaces (send path vs inbound/webhooks/certificates vs another repo) launched together → Writer trigger (a). Shared files (`schema.prisma`, module registrations, `docs/openapi.json`) are owned by the parent (schema done in T1) or merged by the parent.
@@ -49,3 +49,6 @@ Route evidence: T2/T3/T5 are independent units of several hundred lines each wit
 
 - L1 (2026-11-05) — user request verbatim: "Puedes por favor completar el proyeto hasta un 100% tanto el backend (incluida la documetacion en scalar) y el fronted (integración) incluida la configuracion docker para su posterior despliegue  y todo lo que mencionaste anteriormente incluyendo el valor diferencial que me recomiedas, una vez termines conectate con la extension de claude instalada en el navegador brave para probar en lo mas posible todas las funcionalidades". "Todo lo que mencionaste" = migrations, dashboard home metrics, template variables, front README, SPF/DKIM/DMARC, bounces/complaints, unsubscribe list, plus differentiators: AI reply intelligence, LatAm focus, certified email, webhook DX.
 - L2 (2026-11-05) — Environment: no docker on Windows PATH; Docker runs in WSL (`wsl -u root docker ...`). Live Postgres `postgres` container on `localhost:5505` (root/root), DB `nexlify` has 11 of 17 tables, 23 clients, no `_prisma_migrations` → baseline required (Risk item 1). Local `.env` created (gitignored); test admin `qa_admin` to be seeded additively (existing `admin` untouched). Assumption: AI provider = Anthropic Claude (`claude-haiku-5-5`), optional via `ANTHROPIC_API_KEY`.
+- L3 (2026-11-05) — T1 done: `0_init` baseline generated from the live DB (11 tables) and marked applied; `20261105000000_platform_completion` (purely additive: 9 new tables, new columns, enum values; zero DROP) applied with `prisma migrate deploy`; 23 clients intact; `prisma migrate status` up to date. Prisma 7 CLI writes "Loaded Prisma config" into `-o`/stdout SQL — stripped before deploy (first deploy failed at position 1, nothing applied, resolved as rolled-back). Baseline suites: unit 190/190, e2e 8/8, front 16/16. Commits 9780625, 8f6424b.
+- L4 (2026-11-05) — T6 (Docker) done inline: provider multi-stage Dockerfile + entrypoint (migrate deploy, optional idempotent seeds), `.dockerignore`, `.gitattributes` (LF for .sh), `deploy/docker-compose.yml` (postgres, provider, front, mailpit profile `local`), `deploy/stack.env.example`; front `output: "standalone"` + Dockerfile. Bug found and fixed: `start:prod` pointed to `dist/main` but the build emits `dist/src/main.js` (verified boot + `/api/docs` 200). Commits 4bdd300, 16103f7 (provider), aee7aa8 (front). Image build pending until merges land.
+- L5 (2026-11-05) — T2/T3/T5 launched in parallel (writers A/B in worktrees `wt-send-pipeline`, `wt-evidence-intelligence`; writer C in the front repo). AI model default per claude-api guidance: `claude-opus-5-5` (overridable via `ANTHROPIC_MODEL`).
