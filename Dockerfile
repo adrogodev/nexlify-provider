@@ -2,7 +2,7 @@
 
 # ---- base: Node + pnpm ----
 FROM node:24-alpine AS base
-RUN apk add --no-cache openssl && corepack enable && corepack prepare pnpm@10.7.1 --activate
+RUN apk add --no-cache openssl && npm install -g pnpm@10.7.1
 WORKDIR /app
 
 # ---- deps: full install (dev deps are needed to build and to run prisma migrate/seed) ----
