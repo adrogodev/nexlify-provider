@@ -63,7 +63,9 @@ export class EmailsRepository extends BaseRepository<Email, 'id_email'> implemen
     public async countSentOn(from: Date, to: Date): Promise<number> {
         return await this._model.count({
             where: {
-                state: { in: [EmailStateEnum.SENT, EmailStateEnum.WARNING] },
+                // A bounce happens after delivery left the server, so it still
+                // consumes the daily send budget.
+                state: { in: [EmailStateEnum.SENT, EmailStateEnum.WARNING, EmailStateEnum.BOUNCED] },
                 sent_at: { gte: from, lte: to },
             },
         });
