@@ -9,6 +9,7 @@ import { TokenInfo, UseCase, UseCaseArgs } from "src/core/domain/models";
 import { v4 as uuidv4 } from "uuid";
 import { RegisterClientInput, RegisterClientRequestData } from "./register-client.request-data";
 import { ClientStateEnum } from "src/core/domain/enum";
+import { credentialAssignmentLink } from './credential-assignment-link';
 
 export class RegisterClientUseCase implements UseCase<RegisterClientInput, boolean> {
     constructor(
@@ -48,7 +49,7 @@ export class RegisterClientUseCase implements UseCase<RegisterClientInput, boole
         const assignCredetialsTokenInfo = TokenInfo.create({ jti: jti_key, ip_connection: null, id_user: Number(newClient.id_client), is_admin: null });
         const assignCredetialsToken = this._jwt.createTokenWithoutExpiration({ data: assignCredetialsTokenInfo, key: this._appConfig.JWT_SECRET_KEY });
         const tokenChiper = this._encryptor.encrypt(assignCredetialsToken, this._appConfig.ENCRYPT_KEY);
-        const assign_path: string = `${this._appConfig.PLATFORM_URL}?token=${encodeURIComponent(tokenChiper)}`;
+        const assign_path: string = credentialAssignmentLink(this._appConfig.PLATFORM_URL, tokenChiper);
 
 
         //Construir y enviar correo electronico

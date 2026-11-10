@@ -26,7 +26,7 @@ Required (see `.env.example`):
 | `PORT` | HTTP listen port |
 | `NODE_ENV` | `development` / `staging` / `production` |
 | `ADMIN_USER` / `ADMIN_PASSWORD` | Initial platform admin (used by the seed script) |
-| `PLATFORM_URL` | Public platform URL (used in credential-assignment emails) |
+| `PLATFORM_URL` | Public base URL of the client portal, e.g. `https://app.example.com/portal`. Emails link to `${PLATFORM_URL}/activate?token=…` (credential assignment) and `${PLATFORM_URL}/reset-password?token=…` (password recovery) |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_SECRET_KEY` | HS512 signing key for all issued tokens |
 | `JWT_EXPIRATION_TIME` | Session token lifetime, in hours |

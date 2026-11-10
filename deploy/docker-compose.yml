@@ -44,7 +44,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-nexlify}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nexlify}
       ADMIN_USER: ${ADMIN_USER:?set ADMIN_USER}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
-      PLATFORM_URL: ${PLATFORM_URL:-http://localhost:3000}
+      PLATFORM_URL: ${PLATFORM_URL:-http://localhost:3000/portal}
       PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3600}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY}
       JWT_EXPIRATION_TIME: ${JWT_EXPIRATION_TIME:-8}
