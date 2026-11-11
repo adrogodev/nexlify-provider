@@ -1,21 +1,55 @@
 # nexlify-provider
 
-HTTP provider service for the **Nexlify** platform. It onboards client companies, issues access credentials and hashed API keys, manages the platform-wide email configuration (SMTP), and sends emails.
+HTTP provider service for the **Nexlify** platform, a transactional email service for LatAm businesses. It onboards client companies, issues access credentials and hashed API keys, holds the platform-wide email configuration (SMTP), sends emails (single or bulk, from templates), tracks what happens after sending (bounces, unsubscribes, replies), issues verifiable delivery certificates and notifies clients through signed webhooks.
 
-- **Stack**: NestJS 11 · TypeScript · Prisma 7 (PostgreSQL) · nodemailer + react-email · JWT (HS512) · bcrypt password hashing
+- **Stack**: NestJS 11 · TypeScript · Prisma 7 (PostgreSQL) · nodemailer + react-email · JWT (HS512) · bcrypt password hashing · pdfkit · Anthropic SDK (optional AI)
 - **Architecture**: clean/hexagonal layering — `src/presentation` (controllers, guards, server) → `src/core/application` (use cases, contracts, DTOs, mappers) → `src/core/domain` (entities, exceptions, enums, models) → `src/infrastructure` (Prisma repositories, helpers, services, environment).
+- **API reference**: `docs/openapi.json` is the hand-written, single source of truth of the API. It is served with Scalar at `/api/docs` (raw JSON at `/api/docs-json`).
+- **Front**: the admin dashboard, the client portal and the public certificate verification live in the separate `nexlify` repository.
+
+## How it works
+
+1. The admin configures the SMTP server and the sender account (`api/smtp-server`, `api/configuration`). Without it, sending is rejected.
+2. The admin registers a client (`api/client/register`). The client starts as `HABILITACION_PENDIENTE` and receives a credential-assignment email.
+3. The client opens the link (front `/portal/activate`), sets username and password (`api/client/assign-credentials`) and becomes `ACTIVO`.
+4. The admin generates the client's API key (`api/nexlify-keys/generate`). Its system sends with `X-API-Key` through `api/email/send` (single) or `api/email/diffuse` (bulk, queued).
+5. Each send checks the daily limit, the template variables and the suppression list, adds `List-Unsubscribe`, DKIM-signs when the sender domain is verified and goes out through SMTP. Failures are retried by a scheduler.
+6. Bounces, unsubscribes and replies come back through signed endpoints, update the email state and, for replies, run the optional AI analysis. Clients are notified through signed webhooks.
+7. A sent email can be certified (`NXC-…` code, PDF) and verified publicly without revealing its content.
 
 ## Run
 
 ```bash
 pnpm install
-pnpm db:seed        # creates the platform admin_user from env vars (idempotent)
+pnpm db:migrate         # prisma migrate deploy (applies the committed migrations)
+pnpm db:seed            # creates the platform admin_user from env vars (idempotent)
 pnpm db:seed:templates  # upserts the LatAm Spanish email templates by name (idempotent)
-pnpm start:dev      # development server (port from PORT env)
-pnpm test           # unit tests (Jest)
-pnpm test:e2e       # e2e smoke tests (no live database required)
-pnpm build          # production build
+pnpm start:dev          # development server (port from PORT env)
+pnpm test               # unit tests (Jest)
+pnpm test:e2e           # e2e smoke tests (no live database required)
+pnpm build              # production build
 ```
+
+> A database created before the migrations existed needs a one-time baseline before the first deploy: `pnpm prisma migrate resolve --applied 0_init`.
+
+## Docker
+
+`deploy/docker-compose.yml` runs the whole stack. It expects the front repository as a sibling folder (`<root>/nexlify-provider` and `<root>/nexlify`). From the provider root:
+
+```bash
+cp deploy/stack.env.example deploy/.env   # then fill the secrets (deploy/.env is gitignored)
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build                   # postgres + provider + front
+docker compose -f deploy/docker-compose.yml --env-file deploy/.env --profile local up -d --build   # + Mailpit (fake SMTP inbox on :8025)
+```
+
+| Service | Port | Notes |
+| --- | --- | --- |
+| `postgres` | internal | postgres:16-alpine with a persistent volume and a health check |
+| `provider` | 3600 | Built from this repo (Node 24, non-root). Health check: `GET /api/verify` |
+| `front` | 3000 | Built from `../../nexlify`; talks to the provider over the internal network |
+| `mailpit` | 8025 | Only with the `local` profile |
+
+The provider entrypoint runs `prisma migrate deploy` when `RUN_MIGRATIONS` is `true` (default) and the seeds when `RUN_SEED=true`, then starts `node dist/src/main`.
 
 ## Environment variables
 
@@ -36,14 +70,17 @@ Required (see `.env.example`):
 | `PUBLIC_API_URL` | Optional, defaults to `http://localhost:${PORT}`. Public base URL of this API, used to build `List-Unsubscribe` links and certificate verification links. |
 | `ANTHROPIC_API_KEY` | Optional. Enables the AI reply intelligence; without it the feature reports itself disabled and nothing fails. |
 | `ANTHROPIC_MODEL` | Optional, defaults to `claude-opus-5-5`. Claude model used for reply analysis. |
+| `RUN_MIGRATIONS` / `RUN_SEED` | Docker only. Startup behavior of the entrypoint (defaults `true` / `false`; compose sets `RUN_SEED=true`). |
 
 > `JWT_SECRET_KEY` and `ENCRYPT_KEY` are required: requests with an empty value fail fast instead of falling back to default secrets.
 >
 > UUID identifiers (`emails.email_uuid`, `templates.id_template`) are generated **by the database** with `gen_random_uuid()` (Prisma `@default(dbgenerated(...))`); the code never emits a v4 uuid except for the password-recovery jti. `gen_random_uuid()` is built-in for PostgreSQL ≥ 13; add `CREATE EXTENSION IF NOT EXISTS pgcrypto;` for older versions.
 
-## Data model (15 tables)
+## Data model (20 tables)
 
-`admin_user` (platform admins) · `clients` (companies/persons) · `client_credentials` (login, encrypted `auth_token`/`recovery_token`) · `nexlify_keys` (SHA-256 hashed client API keys) · `nexlify_keys_logs` (API key audit) · `smtp_servers` (SMTP provider catalog) · `diffusion_information` (per-client mail credentials) · `templates` · `users` (end-users of a client) · `nexlify_configuration` (singleton: sender identity, SMTP credentials, send limits, email header/footer) · `id_types` (identification document catalog) · `emails` (persistent delivery records) · `email_send_logs` (per-attempt audit) · `webhook_endpoints` (client delivery-status receivers) · `webhook_deliveries` (signed webhook attempts).
+`admin_user` (platform admins) · `clients` (companies/persons) · `client_credentials` (login, encrypted `auth_token`/`recovery_token`) · `nexlify_keys` (SHA-256 hashed client API keys) · `nexlify_keys_logs` (API key audit) · `smtp_servers` (SMTP provider catalog) · `diffusion_information` (per-client mail credentials, not used by the send path) · `templates` · `users` (end-users of a client) · `nexlify_configuration` (singleton: sender identity, SMTP credentials, send limits, email header/footer) · `id_types` (identification document catalog) · `emails` (persistent delivery records, sent and received) · `email_send_logs` (per-attempt audit) · `email_attachments` (attachments of inbound replies) · `email_event_subscriptions` (per-client event subscriptions and field toggles) · `webhook_endpoints` (client delivery-status receivers) · `webhook_deliveries` (signed webhook attempts) · `sending_domains` (DKIM keys and SPF/DKIM/DMARC verification) · `suppressions` (addresses that must not be emailed) · `email_certificates` (frozen delivery evidence).
+
+Schema changes ship as Prisma migrations in `prisma/migrations` (`0_init` baseline + `20261105000000_platform_completion`, purely additive).
 
 Password hashing: bcrypt (cost 12). Legacy unsalted SHA-256 hashes are still accepted for backwards compatibility and are upgraded to bcrypt automatically on the next successful login.
 
@@ -55,14 +92,13 @@ Every send is a persistent record with three identifiers:
 - `email_uuid` (UUID v4) — public API identifier.
 - `short_code` (`NX-XXXXXXX`, base62) — human reference for UI/log search.
 
-States: `QUEUED → SENDING → SENT | WARNING | FAILED → RETRYING`, plus `BOUNCED` (hard bounce / complaint reported) and `SUPPRESSED` (never sent: recipient on the suppression list) (a QUEUED record is consumed by the queue-driven tick; a FAILED record enters the retry machine). Every attempt writes an `email_send_logs` row with level `SUCCESS` (first-attempt success), `WARNING` (success after retries) or `ERROR` (failure), the SMTP host used and the message. `nexlify_configuration.daily_send_limit` caps sends per day; `max_retries` and `retry_interval_seconds` drive the retry machine. A scheduler (`EmailRetryScheduler`, every 30s) processes the queue FIFO (`QUEUED` first, then due `RETRYING`), capped by the remaining daily budget; a failed batch never stops the rest.
+States: `QUEUED → SENT | RETRYING`, `RETRYING → WARNING | FAILED`, plus `BOUNCED` (hard bounce / complaint reported after sending), `SUPPRESSED` (never sent: recipient on the suppression list) and `RECEIVED` (inbound reply). `SENDING` exists in the enum but is never assigned. A QUEUED record is consumed by the queue-driven tick; a failed attempt with attempts left enters the retry machine. Every attempt writes an `email_send_logs` row with level `SUCCESS` (first-attempt success), `WARNING` (success after retries) or `ERROR` (failure), the SMTP host used and the message. `nexlify_configuration.daily_send_limit` caps sends per day; `max_retries` and `retry_interval_seconds` drive the retry machine. A scheduler (`EmailRetryScheduler`, every 30s) processes the queue FIFO (`QUEUED` first, then due `RETRYING`), capped by the remaining daily budget; a failed batch never stops the rest.
 
 ### Delivery-status webhooks
 
 When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` row is enqueued per active `webhook_endpoints` row of that client. A scheduler (`WebhookDeliveryScheduler`, 30s) POSTs `{ event, email_uuid, short_code, attempts, subject, to_email, sent_at }` with `X-Nexlify-Event`, `X-Nexlify-Delivery` and `X-Nexlify-Signature` (HMAC-SHA256 hex of the exact serialized body, using the endpoint secret that is returned exactly once at registration). 2xx delivers; otherwise retry every `60s × attempt`, max 3 attempts, then give up recording `ok=false`.
 
-- Authentication model: `api/email/**` accepts **X-API-Key** (client programmatic access, SHA-256 hashed keys, `nexlify_keys`) *or* the bearer JWT; every other endpoint uses pure JWT. See the endpoint table above.
-- To create the new tables run `pnpm prisma migrate dev --name email_pipeline` (or `pnpm prisma db push`) with the database up.
+- Authentication model: `api/email/**`, `api/webhooks/**`, `api/email-events/subscriptions/**`, `api/stats/overview`, certificates and `api/ai/status` accept **X-API-Key** (client programmatic access, SHA-256 hashed keys, `nexlify_keys`) *or* the bearer JWT; every other endpoint uses pure JWT. See the endpoint table below.
 
 ## Endpoints
 
@@ -76,7 +112,7 @@ When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` ro
 | POST | `api/client/sign-in` | — | Client login; session JWT stored encrypted, revoked IP binding enforced |
 | GET | `api/client/get-clients` | AuthGuard | Paginated client listing with filters |
 | GET | `api/client/data` | AuthGuard | Current client session data |
-| POST | `api/email/send` | EmailAuthGuard (JWT o X-API-Key), ConfigurationExistsGuard | Persist + send an email; returns `email_uuid` and `short_code` |
+| POST | `api/email/send` | EmailAuthGuard (JWT or X-API-Key), ConfigurationExistsGuard | Persist + send an email; returns `email_uuid` and `short_code` |
 | GET | `api/email` | EmailAuthGuard | List delivery records (filters: state, client, dates, short_code; paginated) |
 | GET | `api/email/:emailId` | EmailAuthGuard | Email detail with full attempt log history (`emailId` = uuid or short code) |
 | POST | `api/email/:emailId/retry` | EmailAuthGuard, ConfigurationExistsGuard | Retry one specific delivery in one click |
@@ -84,12 +120,12 @@ When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` ro
 | POST | `api/webhooks` | EmailAuthGuard | Register a delivery-status webhook for the calling client (secret returned once) |
 | GET | `api/webhooks/my` | EmailAuthGuard | List own webhook endpoints (secret never exposed) |
 | PUT | `api/webhooks/:endpointUuid` | EmailAuthGuard | Update url / active toggle (uuid DB-side) |
-| POST | `api/email/inbound` | Firma HMAC (INBOUND_WEBHOOK_SECRET) | Ingestión de respuestas: threading por In-Reply-To/References, adjuntos ≤5MB, idempotente |
-| POST | `api/email-events/subscriptions` | EmailAuthGuard | Subscribe a eventos (RECEIVED_REPLY) eligiendo campos: body/dates/sender/recipients/attachments |
-| GET | `api/email-events/subscriptions/my` | EmailAuthGuard | Suscripciones del cliente (admin ve todas) |
-| PUT | `api/email-events/subscriptions/:subscriptionUuid` | EmailAuthGuard | Actualiza eventos/campos/estado |
-| GET | `api/email/:emailId/attachments/:index` | EmailAuthGuard | Descarga base64 de un adjunto |
-| POST | `api/email/events/bounce` | Firma HMAC (INBOUND_WEBHOOK_SECRET) | Bounce/complaint ingestion: `BOUNCED` + suppression (hard bounce / complaint), log only for soft bounces |
+| POST | `api/email/inbound` | HMAC signature (INBOUND_WEBHOOK_SECRET) | Reply ingestion: threading by In-Reply-To/References, attachments ≤5MB, idempotent |
+| POST | `api/email-events/subscriptions` | EmailAuthGuard | Subscribe to events (RECEIVED_REPLY) choosing fields: body/dates/sender/recipients/attachments/AI analysis |
+| GET | `api/email-events/subscriptions/my` | EmailAuthGuard | The client's subscriptions (admin sees all) |
+| PUT | `api/email-events/subscriptions/:subscriptionUuid` | EmailAuthGuard | Update events/fields/state |
+| GET | `api/email/:emailId/attachments/:index` | EmailAuthGuard | Base64 download of an attachment |
+| POST | `api/email/events/bounce` | HMAC signature (INBOUND_WEBHOOK_SECRET) | Bounce/complaint ingestion: `BOUNCED` + suppression (hard bounce / complaint), log only for soft bounces |
 | POST | `api/domains` | AuthGuard | Register a sending domain: DKIM RSA-2048 keypair + SPF/DKIM/DMARC records to publish |
 | GET | `api/domains` | AuthGuard | List sending domains (own for clients, all for admin) |
 | POST | `api/domains/:domainUuid/verify` | AuthGuard | Resolve DNS and store `spf/dkim/dmarc_verified` |
@@ -170,7 +206,7 @@ POST api/email/inbound  →  HMAC verify (INBOUND_WEBHOOK_SECRET)  →  thread r
 
 ### Dashboard stats
 
-`GET api/stats/overview` aggregates in the database (Prisma `groupBy` + one parameterized `$queryRaw` for the daily series). Clients always see only their own emails; admins see all or filter by `id_client`. The range is a set of inclusive UTC days (default: last 30 days, max 366). `totals` has one counter per `EmailState` (new states appear automatically), `delivery_rate = (SENT+WARNING) / (SENT+WARNING+FAILED+BOUNCED)`, `bounce_rate = BOUNCED / (SENT+WARNING+BOUNCED)` (0..1), `replies` = RECEIVED, `daily` is zero-filled per day, and `budget` is the global `daily_send_limit` minus the SENT/WARNING emails sent today (the same rule the send path enforces).
+`GET api/stats/overview` aggregates in the database (Prisma `groupBy` + one parameterized `$queryRaw` for the daily series). Clients always see only their own emails; admins see all or filter by `id_client`. The range is a set of inclusive UTC days (default: last 30 days, max 366). `totals` has one counter per `EmailState` (new states appear automatically), `delivery_rate = (SENT+WARNING) / (SENT+WARNING+FAILED+BOUNCED)`, `bounce_rate = BOUNCED / (SENT+WARNING+BOUNCED)` (0..1), `replies` = RECEIVED, `daily` is zero-filled per day, and `budget` is the global `daily_send_limit` minus the SENT/WARNING/BOUNCED emails sent today (a bounce happened after the email left the server, so it still consumes the budget; the same rule the send path enforces).
 
 ### Certified email
 
@@ -199,3 +235,21 @@ When `ANTHROPIC_API_KEY` is set, every ingested RECEIVED reply is analyzed with 
 
 - Unit specs are colocated next to the code (`*.spec.ts`) and cover helpers, guards and use cases with mocked repositories — no database required.
 - `pnpm test:e2e` boots the full Nest module against a mocked Prisma provider and asserts the real HTTP surface.
+
+## Known limitations
+
+Found while reading and testing the code; they are not fixed yet.
+
+| Limitation | Effect |
+| --- | --- |
+| `api/email/send` and `api/email/diffuse` store `id_client: null` | Delivery-status webhooks do not fire for real sends; clients cannot see, retry or certify their own emails; client-scoped stats count only replies; suppressions and unsubscribe tokens fall back to platform-wide |
+| Request `attachments` on send are accepted but not passed to the mailer | Recipients get the email without attachments |
+| `api/email/diffuse` always sends from `configuration.sender_email` | The request `from` is ignored for bulk sends |
+| `sender_name`, `reply_to_email` and the configured header/footer are not applied when sending | They are only used by the credential-assignment email |
+| Raw API keys are built from the client id and a timestamp | Keys are guessable; they should come from a CSPRNG |
+| The API key minted at activation is never shown | A new one must be generated from the admin dashboard |
+| Session IP binding compares `request.ip` without a trusted proxy | Behind the front's server actions it binds to the front server's IP |
+| The daily budget is global and counted from server-local midnight | One client can exhaust everyone's quota; stats days are UTC |
+| `api/webhooks/my` lists endpoints of the caller's `id_user` | The admin dashboard webhooks page shows only the admin's own endpoints |
+| `sending_domains.domain` is unique platform-wide; new tables have no foreign keys; `suppressions` has no unique (client, email) | Data-model follow-ups |
+| AI analyses in flight when the process stops are not retried | `api/email/:emailId/analyze` re-runs one on demand |
