@@ -102,6 +102,7 @@ States: `QUEUED → SENT | RETRYING`, `RETRYING → WARNING | FAILED`, plus `BOU
 When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` row is enqueued per active `webhook_endpoints` row of that client. A scheduler (`WebhookDeliveryScheduler`, 30s) POSTs `{ event, email_uuid, short_code, attempts, subject, to_email, sent_at }` with `X-Nexlify-Event`, `X-Nexlify-Delivery` and `X-Nexlify-Signature` (HMAC-SHA256 hex of the exact serialized body, using the endpoint secret that is returned exactly once at registration). 2xx delivers; otherwise retry every `60s × attempt`, max 3 attempts, then give up recording `ok=false`.
 
 - Authentication model: `api/email/**`, `api/webhooks/**`, `api/email-events/subscriptions/**`, `api/stats/overview`, certificates and `api/ai/status` accept **X-API-Key** (client programmatic access, SHA-256 hashed keys, `nexlify_keys`) *or* the bearer JWT; every other endpoint uses pure JWT. See the endpoint table below.
+- Rate limiting: the public authentication routes (`api/admin-user/auth`, `api/client/sign-in`, `api/client/assign-credentials`, `api/client/forgot-password`, `api/client/reset-password`) accept 5 requests per minute per IP and answer `429` after that (`@nestjs/throttler`).
 - Client isolation: a client (JWT session or X-API-Key) only lists, reads, downloads attachments of, retries and certifies its own emails (anything else answers 404, as if it did not exist); emails it sends are stored under its `id_client`. Admins see every email.
 
 ## Endpoints

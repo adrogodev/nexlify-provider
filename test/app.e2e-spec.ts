@@ -182,6 +182,17 @@ describe('API (e2e)', () => {
         expect(emails.count).toHaveBeenCalledWith({ where: expect.objectContaining({ id_client: 7n }) });
     });
 
+    it('POST /api/client/forgot-password answers 429 after 5 attempts per minute from the same IP', async () => {
+        const statuses: number[] = [];
+        for (let i = 0; i < 6; i++) {
+            const res = await request(app.getHttpServer()).post('/api/client/forgot-password').send({});
+            statuses.push(res.status);
+        }
+
+        expect(statuses.slice(0, 5)).not.toContain(429);
+        expect(statuses[5]).toBe(429);
+    });
+
     afterAll(async () => {
         await app.close();
     });

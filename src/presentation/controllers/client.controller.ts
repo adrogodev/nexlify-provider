@@ -53,6 +53,7 @@ import {
 } from 'src/core/application/use-cases/clients/update-client-state';
 import { ClientResponse } from 'src/core/domain/models';
 import { AuthGuard, SmtpServerExistsGuard } from 'src/infrastructure/guards';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ContextInterceptor } from 'src/infrastructure/interceptors/context.interceptor';
 
 @Controller('api/client')
@@ -86,6 +87,7 @@ export class ClientContoller {
 
     @Post('assign-credentials')
     @HttpCode(200)
+    @UseGuards(ThrottlerGuard)
     async assignCredetials(
         @Headers('x-assign-creds-token') assign_creds_token: string,
         @Body() body: AssignCredentialsRequestData,
@@ -101,6 +103,7 @@ export class ClientContoller {
 
     @Post('sign-in')
     @HttpCode(200)
+    @UseGuards(ThrottlerGuard)
     async signIn(
         @Ip() ip: string,
         @Body() body: SignInRequestData,
@@ -187,6 +190,7 @@ export class ClientContoller {
     // whether the username exists.
     @Post('forgot-password')
     @HttpCode(200)
+    @UseGuards(ThrottlerGuard)
     async forgotPassword(
         @Body() body: ForgotPasswordRequestData,
     ): Promise<ClientResponse<boolean>> {
@@ -200,6 +204,7 @@ export class ClientContoller {
 
     @Post('reset-password')
     @HttpCode(200)
+    @UseGuards(ThrottlerGuard)
     async resetPassword(
         @Body() body: ResetPasswordRequestData,
     ): Promise<ClientResponse<boolean>> {

@@ -15,6 +15,7 @@ import {
     UserDataUseCase,
 } from 'src/core/application/use-cases/admin-user';
 import { ClientResponse } from 'src/core/domain/models';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { AuthGuard } from 'src/infrastructure/guards';
 import { ContextInterceptor } from 'src/infrastructure/interceptors/context.interceptor';
 
@@ -28,6 +29,7 @@ export class AdminUserController {
 
     @Post('auth')
     @HttpCode(200)
+    @UseGuards(ThrottlerGuard)
     async auth(
         @Ip() ip: string,
         @Body() body: AuthAdminUserRequestData,
