@@ -10,6 +10,7 @@ export interface ApplicationEnvs {
     ADMIN_USER: string;
     ADMIN_PASSWORD: string;
     PLATFORM_URL: string;
+    CORS_ORIGINS: string;
     JWT_SECRET_KEY: string;
     JWT_EXPIRATION_TIME: number;
     ENCRYPT_KEY: string;

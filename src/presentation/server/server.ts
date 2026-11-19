@@ -12,6 +12,7 @@ import { ValidationException } from 'src/core/domain/exceptions';
 import { GlobalExceptionFilter } from 'src/infrastructure/filters/exception.filter';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { AppEnvs as _env } from '../../infrastructure/environments/app-env.config';
+import { allowedOrigins, buildCorsOptions } from './cors-options';
 
 export class Server {
     readonly #logger = colors;
@@ -59,7 +60,8 @@ export class Server {
                 },
             }),
         );
-        this.#app!.use(cors());
+        // Only the dashboard/portal origin (PLATFORM_URL) and CORS_ORIGINS may call the API from a browser.
+        this.#app!.use(cors(buildCorsOptions(allowedOrigins(_env.PLATFORM_URL, _env.CORS_ORIGINS))));
     }
 
     #registerGlobals(): void {

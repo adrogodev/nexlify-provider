@@ -61,6 +61,7 @@ Required (see `.env.example`):
 | `NODE_ENV` | `development` / `staging` / `production` |
 | `ADMIN_USER` / `ADMIN_PASSWORD` | Initial platform admin (used by the seed script) |
 | `PLATFORM_URL` | Public base URL of the client portal, e.g. `https://app.example.com/portal`. Emails link to `${PLATFORM_URL}/activate?token=…` (credential assignment) and `${PLATFORM_URL}/reset-password?token=…` (password recovery) |
+| `CORS_ORIGINS` | Optional, comma-separated extra browser origins allowed by CORS. The origin of `PLATFORM_URL` is always allowed; requests without an `Origin` header (server-to-server clients with `X-API-Key`) are not affected |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_SECRET_KEY` | HS512 signing key for all issued tokens |
 | `JWT_EXPIRATION_TIME` | Session token lifetime, in hours |
