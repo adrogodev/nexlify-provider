@@ -4,7 +4,6 @@
 /build
 
 # pnpm lock file
-pnpm-lock.yaml
 
 # Logs
 logs
