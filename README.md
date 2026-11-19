@@ -1,5 +1,7 @@
 # nexlify-provider
 
+[![CI](https://github.com/adrogodev/nexlify-provider/actions/workflows/ci.yml/badge.svg)](https://github.com/adrogodev/nexlify-provider/actions/workflows/ci.yml)
+
 HTTP provider service for the **Nexlify** platform, a transactional email service for LatAm businesses. It onboards client companies, issues access credentials and hashed API keys, holds the platform-wide email configuration (SMTP), sends emails (single or bulk, from templates), tracks what happens after sending (bounces, unsubscribes, replies), issues verifiable delivery certificates and notifies clients through signed webhooks.
 
 - **Stack**: NestJS 11 · TypeScript · Prisma 7 (PostgreSQL) · nodemailer + react-email · JWT (HS512) · bcrypt password hashing · pdfkit · Anthropic SDK (optional AI)
@@ -100,6 +102,7 @@ States: `QUEUED → SENT | RETRYING`, `RETRYING → WARNING | FAILED`, plus `BOU
 When an email reaches `SENT` / `WARNING` / `FAILED`, one `webhook_deliveries` row is enqueued per active `webhook_endpoints` row of that client. A scheduler (`WebhookDeliveryScheduler`, 30s) POSTs `{ event, email_uuid, short_code, attempts, subject, to_email, sent_at }` with `X-Nexlify-Event`, `X-Nexlify-Delivery` and `X-Nexlify-Signature` (HMAC-SHA256 hex of the exact serialized body, using the endpoint secret that is returned exactly once at registration). 2xx delivers; otherwise retry every `60s × attempt`, max 3 attempts, then give up recording `ok=false`.
 
 - Authentication model: `api/email/**`, `api/webhooks/**`, `api/email-events/subscriptions/**`, `api/stats/overview`, certificates and `api/ai/status` accept **X-API-Key** (client programmatic access, SHA-256 hashed keys, `nexlify_keys`) *or* the bearer JWT; every other endpoint uses pure JWT. See the endpoint table below.
+- Client isolation: a client (JWT session or X-API-Key) only lists, reads, downloads attachments of, retries and certifies its own emails (anything else answers 404, as if it did not exist); emails it sends are stored under its `id_client`. Admins see every email.
 
 ## Endpoints
 
@@ -235,7 +238,8 @@ When `ANTHROPIC_API_KEY` is set, every ingested RECEIVED reply is analyzed with 
 ## Tests
 
 - Unit specs are colocated next to the code (`*.spec.ts`) and cover helpers, guards and use cases with mocked repositories — no database required.
-- `pnpm test:e2e` boots the full Nest module against a mocked Prisma provider and asserts the real HTTP surface.
+- `pnpm test:e2e` boots the full Nest module against a mocked Prisma provider and asserts the real HTTP surface, including an authenticated X-API-Key request.
+- GitHub Actions (`.github/workflows/ci.yml`) runs the typecheck, unit tests, e2e tests and the production build on every push and pull request to `main`.
 
 ## Known limitations
 
@@ -243,7 +247,7 @@ Found while reading and testing the code; they are not fixed yet.
 
 | Limitation | Effect |
 | --- | --- |
-| `api/email/send` and `api/email/diffuse` store `id_client: null` | Delivery-status webhooks do not fire for real sends; clients cannot see, retry or certify their own emails; client-scoped stats count only replies; suppressions and unsubscribe tokens fall back to platform-wide |
+| Emails sent before per-client isolation have `id_client: null` | Only admins see them; assigning them to their client needs a data migration |
 | Request `attachments` on send are accepted but not passed to the mailer | Recipients get the email without attachments |
 | `api/email/diffuse` always sends from `configuration.sender_email` | The request `from` is ignored for bulk sends |
 | `sender_name`, `reply_to_email` and the configured header/footer are not applied when sending | They are only used by the credential-assignment email |
