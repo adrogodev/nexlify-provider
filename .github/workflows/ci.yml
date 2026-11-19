@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Dummy values: tests mock the database and never call external services.
+      NODE_ENV: development
+      PORT: "3600"
+      ADMIN_USER: ci-admin
+      ADMIN_PASSWORD: ci-password
+      PLATFORM_URL: http://localhost:3000/portal
+      JWT_SECRET_KEY: ci-jwt-secret-key
+      JWT_EXPIRATION_TIME: "2"
+      ENCRYPT_KEY: ci-encrypt-key
+      INBOUND_WEBHOOK_SECRET: ci-inbound-secret
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.7.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit -p tsconfig.build.json
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
+      - name: Build
+        run: pnpm build
