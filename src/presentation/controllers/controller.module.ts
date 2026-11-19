@@ -217,9 +217,9 @@ import { WebhooksController } from './webhooks.controller';
         SmtpServerExistsGuard,
         {
             provide: GenerateNexlifyKeyUseCase,
-            useFactory: (context, keysRepo, hashGen) =>
-                new GenerateNexlifyKeyUseCase(context, keysRepo, hashGen),
-            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR],
+            useFactory: (context, keysRepo, hashGen, idGen) =>
+                new GenerateNexlifyKeyUseCase(context, keysRepo, hashGen, idGen),
+            inject: [REQUEST_CONTEXT, NEXLIFY_KEYS_REPOSITORY, HASH_GENERATOR, ID_GENERATOR],
         },
         {
             provide: ListMyNexlifyKeysUseCase,
@@ -606,6 +606,7 @@ import { WebhooksController } from './webhooks.controller';
                 assignHasGen,
                 passHasher,
                 appConfig,
+                idGen,
             ) =>
                 new AssignCredentialsUseCase(
                     cliRepo,
@@ -617,6 +618,7 @@ import { WebhooksController } from './webhooks.controller';
                     assignHasGen,
                     passHasher,
                     appConfig,
+                    idGen,
                 ),
             inject: [
                 CLIENT_REPOSITORY,
@@ -628,6 +630,7 @@ import { WebhooksController } from './webhooks.controller';
                 HASH_GENERATOR,
                 PASSWORD_HASHER,
                 APP_CONFIG,
+                ID_GENERATOR,
             ],
         },
         {

@@ -1,4 +1,4 @@
-import type { IHashGenerator, IRequestContext } from "src/core/application/contracts/infrastructure";
+import type { IHashGenerator, IIdGenerator, IRequestContext } from "src/core/application/contracts/infrastructure";
 import type { INexlifyKeysRepository } from "src/core/application/contracts/persistence";
 import { ActionNotAllowedException } from "src/core/domain/exceptions";
 import { UseCase, UseCaseArgs } from "src/core/domain/models/use-case.model";
@@ -16,6 +16,7 @@ export class GenerateNexlifyKeyUseCase implements UseCase<{ id_client?: number |
         private readonly _context: IRequestContext,
         private readonly _nexlifyKeysRepository: INexlifyKeysRepository,
         private readonly _hashGenerator: IHashGenerator,
+        private readonly _idGenerator: IIdGenerator,
     ) { }
 
     public run = async (args: UseCaseArgs<{ id_client?: number | bigint }>): Promise<GeneratedNexlifyKeyDTO> => {
@@ -39,7 +40,7 @@ export class GenerateNexlifyKeyUseCase implements UseCase<{ id_client?: number |
         // One active key per client: previous ones are revoked.
         await this._nexlifyKeysRepository.deactivateAllByClientId(id_client);
 
-        const rawKey = `NexlifyApiKey${id_client}${new Date().toISOString()}`;
+        const rawKey = this._idGenerator.generateApiKey();
         const created = await this._nexlifyKeysRepository.create({
             id_client,
             api_key: this._hashGenerator.SHA256(rawKey),

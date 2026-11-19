@@ -7,4 +7,7 @@ export interface IIdGenerator {
 
     /** Generates a short human-friendly code, e.g. NX-7K3F9A1. */
     generateShortCode(prefix?: string, length?: number): string;
+
+    /** Generates an unguessable client API key (`nxk_` + 256 random bits, base64url). */
+    generateApiKey(): string;
 }

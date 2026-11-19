@@ -1,4 +1,4 @@
-import type { IAppConfig } from "src/core/application/contracts/infrastructure";
+import type { IAppConfig, IIdGenerator } from "src/core/application/contracts/infrastructure";
 import { IEncrypter, IHashGenerator, IJwtGenerator, IPasswordHasher } from "src/core/application/contracts/infrastructure";
 import { IClientCredentialsRepository, IClientRepository, INexlifyKeysLogsRepository, INexlifyKeysRepository } from "src/core/application/contracts/persistence";
 import { Client } from "src/core/domain/entities/client.entity";
@@ -21,6 +21,7 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
         private readonly _assignHash: IHashGenerator,
         private readonly _passwordHasher: IPasswordHasher,
         private readonly _appConfig: IAppConfig,
+        private readonly _idGenerator: IIdGenerator,
     ) { }
 
     public run = async (args: UseCaseArgs<AssignCredentialsInput>): Promise<boolean> => {
@@ -52,7 +53,7 @@ export class AssignCredentialsUseCase implements UseCase<AssignCredentialsInput,
         await this._clientCredentialsRepository.update(client_credentials!.id_client_credential, client_credentials!);
 
         //Genera api-key para el cliente
-        const clientApiKey = `NexlifyApiKey${client.id_client}${new Date().toISOString()}`
+        const clientApiKey = this._idGenerator.generateApiKey();
 
         await this._nexlifyKey.create({
             id_client: client.id_client,

@@ -15,6 +15,12 @@ describe('IdGeneratorHelper', () => {
         expect(code).not.toBe(helper.generateShortCode());
     });
 
+    it('generates unguessable API keys: nxk_ prefix plus 256 random bits in base64url', () => {
+        const key = helper.generateApiKey();
+        expect(key).toMatch(/^nxk_[A-Za-z0-9_-]{43}$/);
+        expect(key).not.toBe(helper.generateApiKey());
+    });
+
     it('honors a custom prefix and length', () => {
         expect(helper.generateShortCode('X', 12)).toMatch(/^X-[0-9A-Za-z]{12}$/);
     });

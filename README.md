@@ -251,7 +251,6 @@ Found while reading and testing the code; they are not fixed yet.
 | Request `attachments` on send are accepted but not passed to the mailer | Recipients get the email without attachments |
 | `api/email/diffuse` always sends from `configuration.sender_email` | The request `from` is ignored for bulk sends |
 | `sender_name`, `reply_to_email` and the configured header/footer are not applied when sending | They are only used by the credential-assignment email |
-| Raw API keys are built from the client id and a timestamp | Keys are guessable; they should come from a CSPRNG |
 | The API key minted at activation is never shown | A new one must be generated from the admin dashboard |
 | Session IP binding compares `request.ip` without a trusted proxy | Behind the front's server actions it binds to the front server's IP |
 | The daily budget is global and counted from server-local midnight | One client can exhaust everyone's quota; stats days are UTC |

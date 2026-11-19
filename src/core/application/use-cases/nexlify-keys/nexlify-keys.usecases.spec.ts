@@ -7,6 +7,7 @@ describe('API key management use cases', () => {
     const hashGenerator = { SHA256: jest.fn((v: string) => `sha256:${v}`), SHA512: jest.fn() } as never;
 
     const contextFor = (auth: unknown) => ({ get: jest.fn(() => auth) }) as never;
+    const idGenerator = { generateApiKey: jest.fn(() => 'nxk_RandomKeyFromCsprng') } as never;
 
     const allKeys: Array<Record<string, any>> = [];
     const keysRepo = {
@@ -37,23 +38,24 @@ describe('API key management use cases', () => {
     describe('GenerateNexlifyKeyUseCase', () => {
         it('generates a raw key for the calling client and revokes previous active ones', async () => {
             allKeys.push({ id_nexlify_key: 7n, id_client: 10n, api_key: 'old', state: true });
-            const useCase = new GenerateNexlifyKeyUseCase(contextFor({ id_user: 10, is_admin: false }), keysRepo, hashGenerator);
+            const useCase = new GenerateNexlifyKeyUseCase(contextFor({ id_user: 10, is_admin: false }), keysRepo, hashGenerator, idGenerator);
 
             const result = await useCase.run({ data: null } as never);
 
-            expect(result.api_key).toContain('NexlifyApiKey');
+            expect(result.api_key).toBe('nxk_RandomKeyFromCsprng');
+            expect(result.api_key).not.toContain('10');
             expect((keysRepo as any).deactivateAllByClientId).toHaveBeenCalledWith(10n);
             expect((keysRepo as any).create.mock.calls[0][0].state).toBe(true);
             expect((keysRepo as any).create.mock.calls[0][0].api_key).toBe(`sha256:${result.api_key}`);
         });
 
         it('refuses non-admin requests targeting another client', async () => {
-            const useCase = new GenerateNexlifyKeyUseCase(contextFor({ id_user: 10, is_admin: false }), keysRepo as never, hashGenerator);
+            const useCase = new GenerateNexlifyKeyUseCase(contextFor({ id_user: 10, is_admin: false }), keysRepo as never, hashGenerator, idGenerator);
             await expect(useCase.run({ data: { id_client: 55n } } as never)).rejects.toBeInstanceOf(ActionNotAllowedException);
         });
 
         it('allows admin requests targeting another client', async () => {
-            const useCase = new GenerateNexlifyKeyUseCase(contextFor({ id_user: 1, is_admin: true }), keysRepo as never, hashGenerator);
+            const useCase = new GenerateNexlifyKeyUseCase(contextFor({ id_user: 1, is_admin: true }), keysRepo as never, hashGenerator, idGenerator);
             const result = await useCase.run({ data: { id_client: 55n } } as never);
             expect(result.api_key).toBeTruthy();
         });

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { IIdGenerator } from 'src/core/application/contracts/infrastructure';
 
 const BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
@@ -19,5 +19,9 @@ export class IdGeneratorHelper implements IIdGenerator {
             code += BASE62_ALPHABET[byte % BASE62_ALPHABET.length];
         }
         return `${prefix}-${code}`;
+    }
+
+    public generateApiKey(): string {
+        return `nxk_${randomBytes(32).toString('base64url')}`;
     }
 }
