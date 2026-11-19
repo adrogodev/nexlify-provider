@@ -1,10 +1,11 @@
 import type { IEmailsRepository, INexlifyConfigurationRepository } from "src/core/application/contracts/persistence";
-import { IIdGenerator } from "src/core/application/contracts/infrastructure";
+import { IIdGenerator, IRequestContext } from "src/core/application/contracts/infrastructure";
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
 import { ActionNotAllowedException } from "src/core/domain/exceptions";
 import { EmailStateEnum } from "src/core/domain/enum";
 import { DiffuseEmailInput } from "../email.request-data";
 import { TemplateContentService } from "../services/template-content.service";
+import { ownerClientId } from "../services/email-access";
 
 export interface DiffuseEmailResultDTO {
     queued: number;
@@ -22,6 +23,7 @@ export class DiffuseEmailUseCase implements UseCase<DiffuseEmailInput, DiffuseEm
         private readonly _emailsRepository: IEmailsRepository,
         private readonly _idGenerator: IIdGenerator,
         private readonly _templateContentService: TemplateContentService,
+        private readonly _context: IRequestContext,
     ) { }
 
     public run = async (args: UseCaseArgs<DiffuseEmailInput>): Promise<DiffuseEmailResultDTO> => {
@@ -42,11 +44,12 @@ export class DiffuseEmailUseCase implements UseCase<DiffuseEmailInput, DiffuseEm
         // Rendered once: every recipient receives the same content (S2).
         const content = await this._templateContentService.resolve({ id_template, variables, subject, html, text });
 
+        const id_client = ownerClientId(this._context.get());
         const shortCodes: string[] = [];
         for (const recipient of to) {
             const persisted = await this._emailsRepository.create({
                 short_code: this._idGenerator.generateShortCode(),
-                id_client: null,
+                id_client,
                 from_email: configuration.sender_email,
                 to_email: recipient,
                 subject: content.subject,

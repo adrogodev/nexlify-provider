@@ -7,6 +7,7 @@ import {
     Post,
     Query,
     UseGuards,
+    UseInterceptors,
 } from '@nestjs/common';
 import {
     EmailAttachmentContentDTO,
@@ -37,8 +38,10 @@ import {
     ConfigurationExistsGuard,
     EmailAuthGuard,
 } from 'src/infrastructure/guards';
+import { ContextInterceptor } from 'src/infrastructure/interceptors/context.interceptor';
 
 @UseGuards(EmailAuthGuard)
+@UseInterceptors(ContextInterceptor)
 @Controller('api/email')
 export class EmailController {
     constructor(

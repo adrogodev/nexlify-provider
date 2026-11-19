@@ -32,7 +32,7 @@ describe('DiffuseEmailUseCase', () => {
         const templatesRepo = {
             getByIdAsync: jest.fn(async () => ({ id_template: '33333333-3333-4333-8333-333333333333', subject: 'Aviso {{mes}}', template: '<p>{{mes}}</p>', is_active: true })),
         } as never;
-        const useCase = new DiffuseEmailUseCase(configRepo, emailsRepo, idGen, new TemplateContentService(templatesRepo));
+        const useCase = new DiffuseEmailUseCase(configRepo, emailsRepo, idGen, new TemplateContentService(templatesRepo), { get: () => ({ id_user: 1, is_admin: true }) } as never);
         return {
             useCase,
             emailsRepo: emailsRepo as unknown as { create: jest.Mock; countSentOn: jest.Mock },

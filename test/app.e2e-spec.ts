@@ -16,6 +16,11 @@ describe('API (e2e)', () => {
         create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ id_suppression: 1n, suppression_uuid: 'u', ...data })),
     };
 
+    const emails = {
+        findMany: jest.fn(async () => []),
+        count: jest.fn(async () => 0),
+    };
+
     beforeAll(async () => {
         const moduleFixture: TestingModule = await Test.createTestingModule({
             imports: [AppModule],
@@ -29,7 +34,8 @@ describe('API (e2e)', () => {
                 $on: jest.fn(),
                 $extends: jest.fn(),
                 admin_user: {},
-                emails: { findMany: jest.fn(async () => []) },
+                emails,
+                nexlify_keys: { findFirst: jest.fn(async () => ({ id_nexlify_key: 1n, id_client: 7n, state: true })) },
                 email_send_logs: {},
                 email_attachments: {},
                 email_event_subscriptions: {},
@@ -161,6 +167,19 @@ describe('API (e2e)', () => {
 
     it('GET /api/certificates/:code/verify rejects a malformed code with 400', () => {
         return request(app.getHttpServer()).get('/api/certificates/not-a-code/verify').expect(400);
+    });
+
+    it('GET /api/email with a valid X-API-Key lists only the calling client emails (request context available)', async () => {
+        emails.findMany.mockClear();
+        emails.count.mockClear();
+
+        await request(app.getHttpServer())
+            .get('/api/email?id_client=8')
+            .set('X-API-Key', 'e2e-client-key')
+            .expect(200);
+
+        expect(emails.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id_client: 7n }) }));
+        expect(emails.count).toHaveBeenCalledWith({ where: expect.objectContaining({ id_client: 7n }) });
     });
 
     afterAll(async () => {

@@ -1,12 +1,13 @@
 import type { IEmailsRepository } from "src/core/application/contracts/persistence";
 import { INexlifyConfigurationRepository } from "src/core/application/contracts/persistence";
-import { IIdGenerator } from "src/core/application/contracts/infrastructure";
+import { IIdGenerator, IRequestContext } from "src/core/application/contracts/infrastructure";
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
 import { SendEmailInput } from "./send-email.request-data";
 import { SendEmailResultDTO } from "src/core/application/dtos";
 import { EmailAttemptService } from "../services/email-attempt.service";
 import { EmailStateEnum } from "src/core/domain/enum";
 import { TemplateContentService } from "../services/template-content.service";
+import { ownerClientId } from "../services/email-access";
 
 export class SendEmailUseCase implements UseCase<SendEmailInput, SendEmailResultDTO> {
     constructor(
@@ -15,6 +16,7 @@ export class SendEmailUseCase implements UseCase<SendEmailInput, SendEmailResult
         private readonly _attemptService: EmailAttemptService,
         private readonly _idGenerator: IIdGenerator,
         private readonly _templateContentService: TemplateContentService,
+        private readonly _context: IRequestContext,
     ) { }
 
     public run = async (args: UseCaseArgs<SendEmailInput>): Promise<SendEmailResultDTO> => {
@@ -46,7 +48,7 @@ export class SendEmailUseCase implements UseCase<SendEmailInput, SendEmailResult
 
         const persisted = await this._emailsRepository.create({
             short_code: this._idGenerator.generateShortCode(),
-            id_client: null,
+            id_client: ownerClientId(this._context.get()),
             from_email: values.from,
             to_email: Array.isArray(values.to) ? values.to.join(',') : values.to,
             subject: content.subject,

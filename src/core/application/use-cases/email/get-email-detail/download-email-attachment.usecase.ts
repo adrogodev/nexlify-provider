@@ -2,6 +2,8 @@ import type { IEmailAttachmentsRepository, IEmailsRepository } from "src/core/ap
 import { EmailAttachmentContentDTO } from "src/core/application/dtos";
 import { NotFoundException } from "src/core/domain/exceptions";
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
+import type { IRequestContext } from "src/core/application/contracts/infrastructure";
+import { assertEmailAccess } from "../services/email-access";
 
 /**
  * Downloads one attachment of an email by its list index (S6 read side), the
@@ -12,15 +14,16 @@ export class DownloadEmailAttachmentUseCase implements UseCase<{ emailId: string
     constructor(
         private readonly _emailsRepository: IEmailsRepository,
         private readonly _emailAttachmentsRepository: IEmailAttachmentsRepository,
+        private readonly _context: IRequestContext,
     ) { }
 
     public run = async (args: UseCaseArgs<{ emailId: string; index: number }>): Promise<EmailAttachmentContentDTO> => {
         const { emailId, index } = args.data;
 
-        const email = await this._emailsRepository.findByUuidOrShortCode(emailId);
-        if (email === null) {
-            throw new NotFoundException('El correo solicitado no existe');
-        }
+        const email = assertEmailAccess(
+            this._context.get(),
+            await this._emailsRepository.findByUuidOrShortCode(emailId),
+        );
 
         const attachments = await this._emailAttachmentsRepository.findByEmail(email.id_email);
         const attachment = attachments[index];

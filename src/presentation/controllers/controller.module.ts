@@ -338,6 +338,7 @@ import { WebhooksController } from './webhooks.controller';
                 attemptService,
                 idGen,
                 templateContent,
+                context,
             ) =>
                 new SendEmailUseCase(
                     configRepo,
@@ -345,6 +346,7 @@ import { WebhooksController } from './webhooks.controller';
                     attemptService,
                     idGen,
                     templateContent,
+                    context,
                 ),
             inject: [
                 NEXLIFY_CONFIGURATION_REPOSITORY,
@@ -352,6 +354,7 @@ import { WebhooksController } from './webhooks.controller';
                 EmailAttemptService,
                 ID_GENERATOR,
                 TemplateContentService,
+                REQUEST_CONTEXT,
             ],
         },
         {
@@ -490,49 +493,53 @@ import { WebhooksController } from './webhooks.controller';
         },
         {
             provide: GetEmailDetailUseCase,
-            useFactory: (emailsRepo, logsRepo, attachmentsRepo) =>
+            useFactory: (emailsRepo, logsRepo, attachmentsRepo, context) =>
                 new GetEmailDetailUseCase(
                     emailsRepo,
                     logsRepo,
                     attachmentsRepo,
+                    context,
                 ),
             inject: [
                 EMAILS_REPOSITORY,
                 EMAIL_SEND_LOGS_REPOSITORY,
                 EMAIL_ATTACHMENTS_REPOSITORY,
+                REQUEST_CONTEXT,
             ],
         },
         {
             provide: DownloadEmailAttachmentUseCase,
-            useFactory: (emailsRepo, attachmentsRepo) =>
-                new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo),
-            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY],
+            useFactory: (emailsRepo, attachmentsRepo, context) =>
+                new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo, context),
+            inject: [EMAILS_REPOSITORY, EMAIL_ATTACHMENTS_REPOSITORY, REQUEST_CONTEXT],
         },
         {
             provide: GetEmailsUseCase,
-            useFactory: (emailsRepo) => new GetEmailsUseCase(emailsRepo),
-            inject: [EMAILS_REPOSITORY],
+            useFactory: (emailsRepo, context) => new GetEmailsUseCase(emailsRepo, context),
+            inject: [EMAILS_REPOSITORY, REQUEST_CONTEXT],
         },
         {
             provide: RetryEmailUseCase,
-            useFactory: (emailsRepo, attemptService) =>
-                new RetryEmailUseCase(emailsRepo, attemptService),
-            inject: [EMAILS_REPOSITORY, EmailAttemptService],
+            useFactory: (emailsRepo, attemptService, context) =>
+                new RetryEmailUseCase(emailsRepo, attemptService, context),
+            inject: [EMAILS_REPOSITORY, EmailAttemptService, REQUEST_CONTEXT],
         },
         {
             provide: DiffuseEmailUseCase,
-            useFactory: (configRepo, emailsRepo, idGen, templateContent) =>
+            useFactory: (configRepo, emailsRepo, idGen, templateContent, context) =>
                 new DiffuseEmailUseCase(
                     configRepo,
                     emailsRepo,
                     idGen,
                     templateContent,
+                    context,
                 ),
             inject: [
                 NEXLIFY_CONFIGURATION_REPOSITORY,
                 EMAILS_REPOSITORY,
                 ID_GENERATOR,
                 TemplateContentService,
+                REQUEST_CONTEXT,
             ],
         },
         {

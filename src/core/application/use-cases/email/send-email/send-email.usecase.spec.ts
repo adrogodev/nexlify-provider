@@ -35,7 +35,7 @@ describe('SendEmailUseCase', () => {
         const attempt = { attempt: jest.fn(async () => overrides?.attemptResult ?? { state: 'SENT', attempts: 1 }) } as never;
         const idGen = { generateUuid: () => createdEmail.email_uuid, generateShortCode: () => createdEmail.short_code } as never;
         const templatesRepo = { getByIdAsync: jest.fn(async () => template) } as never;
-        const useCase = new SendEmailUseCase(configRepo, emailsRepo, attempt, idGen, new TemplateContentService(templatesRepo));
+        const useCase = new SendEmailUseCase(configRepo, emailsRepo, attempt, idGen, new TemplateContentService(templatesRepo), { get: () => ({ id_user: 1, is_admin: true }) } as never);
         return { useCase, emailsRepo: emailsRepo as unknown as { create: jest.Mock; countSentOn: jest.Mock }, attempt: (attempt as unknown as { attempt: jest.Mock }).attempt };
     };
 

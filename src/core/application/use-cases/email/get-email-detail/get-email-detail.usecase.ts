@@ -1,8 +1,9 @@
 import type { IEmailAttachmentsRepository, IEmailsRepository, IEmailSendLogsRepository } from "src/core/application/contracts/persistence";
 import { EmailDetailDTO } from "src/core/application/dtos";
 import { EmailMapper } from "src/core/application/mappers";
-import { NotFoundException } from "src/core/domain/exceptions";
+import type { IRequestContext } from "src/core/application/contracts/infrastructure";
 import { UseCase, UseCaseArgs } from "src/core/domain/models";
+import { assertEmailAccess } from "../services/email-access";
 
 /**
  * Full detail of an email (S6 read side): state machine fields, spend logs,
@@ -15,15 +16,16 @@ export class GetEmailDetailUseCase implements UseCase<string, EmailDetailDTO> {
         private readonly _emailsRepository: IEmailsRepository,
         private readonly _emailSendLogsRepository: IEmailSendLogsRepository,
         private readonly _emailAttachmentsRepository: IEmailAttachmentsRepository,
+        private readonly _context: IRequestContext,
     ) { }
 
     public run = async (args: UseCaseArgs<string>): Promise<EmailDetailDTO> => {
         const identifier = args.data;
 
-        const email = await this._emailsRepository.findByUuidOrShortCode(identifier);
-        if (email === null) {
-            throw new NotFoundException('El correo solicitado no existe');
-        }
+        const email = assertEmailAccess(
+            this._context.get(),
+            await this._emailsRepository.findByUuidOrShortCode(identifier),
+        );
 
         const logs = await this._emailSendLogsRepository.findByEmail(email.id_email);
         const attachments = await this._emailAttachmentsRepository.findByEmail(email.id_email);

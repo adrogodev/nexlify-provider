@@ -17,6 +17,14 @@ export function canAccessEmail(
 }
 
 /**
+ * Owner stored on a new email: the calling client, or null for admin sends
+ * (admin-owned emails are only visible to admins).
+ */
+export function ownerClientId(auth: TokenInfo): bigint | null {
+    return auth.is_admin === true ? null : BigInt(auth.id_user);
+}
+
+/**
  * Same 404 for "missing" and "not yours": a client never learns that
  * another client's email exists.
  */

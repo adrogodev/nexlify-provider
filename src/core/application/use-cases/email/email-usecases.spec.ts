@@ -8,6 +8,9 @@ import { EmailDirectionEnum } from 'src/core/domain/enum';
 import { NotFoundException } from 'src/core/domain/exceptions';
 
 describe('Email read + retry use cases', () => {
+    // Admin context: these specs pin the behavior that existed before per-client scoping.
+    const adminContext = { get: () => ({ id_user: 1, is_admin: true }) } as never;
+
     const email = {
         id_email: 100n,
         email_uuid: '11111111-2222-4333-8444-555555555555',
@@ -76,7 +79,7 @@ describe('Email read + retry use cases', () => {
     const attemptService = { attempt: jest.fn(async (id: bigint) => ({ ...email, id_email: id, state: 'SENT', attempts: 3 })) } as never;
 
     it('GetEmailDetailUseCase returns email + logs by uuid or short code', async () => {
-        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo);
+        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo, adminContext);
 
         const result = await useCase.run({ data: 'NX-AAAAAA1' } as never);
 
@@ -89,7 +92,7 @@ describe('Email read + retry use cases', () => {
     it('GetEmailDetailUseCase exposes id_template and the parsed template_variables (S2)', async () => {
         const templated = { ...email, id_template: '33333333-3333-4333-8333-333333333333', template_variables: '{"nombre":"Ana"}' } as unknown as Email;
         const repo = { ...(emailsRepo as object), findByUuidOrShortCode: jest.fn(async () => templated) } as never;
-        const useCase = new GetEmailDetailUseCase(repo, logsRepo, attachmentsRepo);
+        const useCase = new GetEmailDetailUseCase(repo, logsRepo, attachmentsRepo, adminContext);
 
         const result = await useCase.run({ data: 'NX-AAAAAA1' } as never);
 
@@ -98,7 +101,7 @@ describe('Email read + retry use cases', () => {
     });
 
     it('GetEmailDetailUseCase returns null template fields for emails sent without a template', async () => {
-        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo);
+        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo, adminContext);
 
         const result = await useCase.run({ data: 'NX-AAAAAA1' } as never);
 
@@ -107,12 +110,12 @@ describe('Email read + retry use cases', () => {
     });
 
     it('GetEmailDetailUseCase throws NotFound for unknown identifiers', async () => {
-        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo);
+        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo, adminContext);
         await expect(useCase.run({ data: 'desconocido' } as never)).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('GetEmailDetailUseCase includes direction, parent uuid and attachment metadata without base64 content', async () => {
-        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo);
+        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo, adminContext);
 
         const result = await useCase.run({ data: receivedReply.email_uuid } as never);
 
@@ -127,7 +130,7 @@ describe('Email read + retry use cases', () => {
     it('GetEmailDetailUseCase resolves a standalone received email with null parent and no attachments', async () => {
         const standalone = { ...receivedReply, id_email: 102n, parent_email_id: null } as unknown as Email;
         (emailsRepo as unknown as { findByUuidOrShortCode: jest.Mock }).findByUuidOrShortCode.mockImplementationOnce(async () => standalone);
-        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo);
+        const useCase = new GetEmailDetailUseCase(emailsRepo, logsRepo, attachmentsRepo, adminContext);
 
         const result = await useCase.run({ data: 'NX-CCCCCC1' } as never);
 
@@ -137,7 +140,7 @@ describe('Email read + retry use cases', () => {
     });
 
     it('DownloadEmailAttachmentUseCase returns the base64 content with metadata for an in-range index', async () => {
-        const useCase = new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo);
+        const useCase = new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo, adminContext);
 
         const result = await useCase.run({ data: { emailId: receivedReply.email_uuid, index: 0 } });
 
@@ -150,21 +153,21 @@ describe('Email read + retry use cases', () => {
     });
 
     it('DownloadEmailAttachmentUseCase throws NotFound when the attachment index is out of range', async () => {
-        const useCase = new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo);
+        const useCase = new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo, adminContext);
 
         await expect(useCase.run({ data: { emailId: receivedReply.email_uuid, index: 1 } }))
             .rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('DownloadEmailAttachmentUseCase throws NotFound for an unknown email identifier', async () => {
-        const useCase = new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo);
+        const useCase = new DownloadEmailAttachmentUseCase(emailsRepo, attachmentsRepo, adminContext);
 
         await expect(useCase.run({ data: { emailId: 'desconocido', index: 0 } }))
             .rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('GetEmailsUseCase returns paginated listing', async () => {
-        const useCase = new GetEmailsUseCase(emailsRepo);
+        const useCase = new GetEmailsUseCase(emailsRepo, adminContext);
 
         const result = await useCase.run({ data: { page: 1, limit: 20 } } as never);
 
@@ -174,7 +177,7 @@ describe('Email read + retry use cases', () => {
     });
 
     it('RetryEmailUseCase delegates the attempt to the shared service', async () => {
-        const useCase = new RetryEmailUseCase(emailsRepo, attemptService);
+        const useCase = new RetryEmailUseCase(emailsRepo, attemptService, adminContext);
 
         const result = await useCase.run({ data: '11111111-2222-4333-8444-555555555555' } as never);
 
@@ -184,7 +187,7 @@ describe('Email read + retry use cases', () => {
     });
 
     it('RetryEmailUseCase throws NotFound for unknown identifiers', async () => {
-        const useCase = new RetryEmailUseCase(emailsRepo, attemptService);
+        const useCase = new RetryEmailUseCase(emailsRepo, attemptService, adminContext);
         await expect(useCase.run({ data: 'desconocido' } as never)).rejects.toBeInstanceOf(NotFoundException);
     });
 
